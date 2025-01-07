@@ -9,14 +9,13 @@ app.use(bodyParser.urlencoded({extended: true}))
 const PORT = process.env.PORT ?? 3000
 const STREAM_KEYS_FILE = process.env.STREAM_KEYS ?? './stream-keys'
 
-const streamKeys = new Set(
-  fs
-    .readFileSync(STREAM_KEYS_FILE, 'utf8')
-    .trimEnd()
-    .split('\n')
-)
-
 app.post('/auth', (req, res) => {
+  const streamKeys = new Set(
+    fs
+      .readFileSync(STREAM_KEYS_FILE, 'utf8')
+      .trimEnd()
+      .split('\n')
+  )
   const streamKey = req.body.name
   if (streamKeys.has(streamKey)) {
     console.log(`Authenticated ${streamKey}`)

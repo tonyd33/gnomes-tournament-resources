@@ -10,11 +10,11 @@ services:
     restart: unless-stopped
     environment:
       - PORT=6570
-      - STREAM_KEYS=/stream-keys
+      - "STREAM_KEYS=./stream-keys"
     networks:
       - rtmp
     volumes:
-      - "./stream-keys:/stream-keys"
+      - "./stream-keys:/app/stream-keys"
 
   nginx-rtmp:
     container_name: nginx-rtmp
