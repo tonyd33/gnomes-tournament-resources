@@ -1,0 +1,57 @@
+- hosts: all
+  name: Common setup
+  tasks:
+    - name: Get hostname
+      shell:
+        cmd: 'hostname'
+      changed_when: false
+      register: node_hostname
+    - set_fact:
+        canonical_hostname: "{{ node_hostname.stdout }}"
+        advertise_addr: "{{ ansible_default_ipv4.address }}"
+    - name: Install system dependencies
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-docker
+          - ufw
+          - docker.io
+          - docker-buildx
+          - docker-compose-v2
+          - jq
+          - glusterfs-server
+          - glusterfs-client
+          - python3-certbot
+          - python3-certbot-nginx
+          - nginx
+        update_cache: yes
+        state: present
+
+- hosts: master
+  roles:
+    - swarm-master
+    - gluster-master
+
+- hosts: worker
+  tasks:
+    - set_fact:
+        master_facts: "{{ hostvars[groups.master[0]] }}"
+
+- hosts: worker
+  roles:
+    - swarm-worker
+    - gluster-worker
+
+- hosts: master
+  vars:
+    certbot_admin_email: tony@gnomes.moe
+    certbot_create_if_missing: true
+    certbot_create_method: standalone
+    certbot_certs:
+      - domains:
+          - rtmp.gnomes.moe
+  roles:
+    - build-image
+    - certs
+    - deploy-stack

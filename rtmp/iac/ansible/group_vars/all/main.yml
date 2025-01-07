@@ -1,0 +1,6 @@
+debug_certs: false
+generate_stream_keys: true
+override_stream_keys: false
+
+ssl_cert_name: "cert"
+ssl_key_name: "key"

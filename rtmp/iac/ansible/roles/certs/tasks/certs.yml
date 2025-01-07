@@ -1,0 +1,16 @@
+- name: Import certbot role
+  import_role:
+    name: geerlingguy.certbot
+
+# We're only going to use the domain for like a day, so copying it over rather
+# than some symlink solution is fine
+- name: Copy certs
+  copy:
+    remote_src: true
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+    - src: /etc/letsencrypt/live/rtmp.gnomes.moe/fullchain.pem
+      dest: /mnt/rtmp/shared-resources/{{ ssl_cert_name }}
+    - src: /etc/letsencrypt/live/rtmp.gnomes.moe/privkey.pem
+      dest: /mnt/rtmp/shared-resources/{{ ssl_key_name }}

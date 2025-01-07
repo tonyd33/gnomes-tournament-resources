@@ -1,0 +1,6 @@
+- name: Join swarm
+  docker_swarm:
+    state: join
+    join_token: "{{ master_facts.worker_join_token }}"
+    advertise_addr: "{{ ansible_default_ipv4.address }}"
+    remote_addrs: ["{{ master_facts.advertise_addr }}"]

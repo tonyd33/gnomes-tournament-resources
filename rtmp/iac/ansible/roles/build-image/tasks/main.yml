@@ -1,0 +1,46 @@
+- name: Check if registry exists
+  shell:
+    cmd: "docker service ls | grep registry"
+  register: registry
+  ignore_errors: true
+  changed_when: false
+
+- name: Set up registry
+  shell:
+    cmd: "docker service create --name registry -p 5000:5000 registry:2"
+  when: registry.rc != 0
+
+- name: Set up directory structure
+  file:
+    path: '/root/stack/auth-server'
+    state: directory
+    mode: '755'
+
+- name: Copy files
+  copy:
+    src: "../../docker/{{ item }}"
+    dest: "/root/stack/{{ item }}"
+  loop:
+    - nginx/
+    - nginx-rtmp/
+    - docker-compose.stack.yml
+    - auth-server/package.json
+    - auth-server/package-lock.json
+    - auth-server/Dockerfile
+    - auth-server/index.js
+
+- name: Build images
+  community.docker.docker_image_build:
+    name: "{{ item.name }}"
+    path: "{{ item.path }}"
+    outputs:
+      - push: true
+        type: image
+  loop:
+    - name: "localhost:5000/nginx"
+      path: /root/stack/nginx
+    - name: "localhost:5000/nginx-rtmp"
+      path: /root/stack/nginx-rtmp
+    - name: "localhost:5000/rtmp-auth"
+      path: /root/stack/auth-server
+

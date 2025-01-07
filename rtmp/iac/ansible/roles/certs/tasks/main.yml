@@ -1,0 +1,8 @@
+- name: Run debug certs
+  include_tasks: debug.yml
+  when: debug_certs
+
+- name: Run debug certs
+  include_tasks: certs.yml
+  when: "{{ not (debug_certs | default(false)) }}"
+
