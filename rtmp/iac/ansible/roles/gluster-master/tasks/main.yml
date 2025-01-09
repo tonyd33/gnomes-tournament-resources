@@ -1,4 +1,3 @@
-# GlusterFS stuff
 - name: Set base port
   lineinfile:
     path: /etc/glusterfs/glusterd.vol
@@ -51,3 +50,4 @@
   loop:
     - recordings
     - shared-resources
+

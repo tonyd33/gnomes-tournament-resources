@@ -1,0 +1,3 @@
+- import tasks: gluster.yml
+  name: Initialize gluster on the first master node
+  when: inventory_hostname == groups.master[0]

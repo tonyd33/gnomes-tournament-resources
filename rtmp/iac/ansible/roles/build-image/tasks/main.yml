@@ -12,22 +12,18 @@
 
 - name: Set up directory structure
   file:
-    path: '/root/stack/auth-server'
+    path: '/root/docker-build'
     state: directory
     mode: '755'
 
 - name: Copy files
   copy:
-    src: "../../docker/{{ item }}"
-    dest: "/root/stack/{{ item }}"
+    src: "../files/{{ item }}"
+    dest: "/root/docker-build/{{ item }}"
   loop:
-    - nginx/
-    - nginx-rtmp/
-    - docker-compose.stack.yml
-    - auth-server/package.json
-    - auth-server/package-lock.json
-    - auth-server/Dockerfile
-    - auth-server/index.js
+    # - nginx/
+    # - nginx-rtmp/
+    - auth-server/
 
 - name: Build images
   community.docker.docker_image_build:
@@ -37,10 +33,10 @@
       - push: true
         type: image
   loop:
-    - name: "localhost:5000/nginx"
-      path: /root/stack/nginx
-    - name: "localhost:5000/nginx-rtmp"
-      path: /root/stack/nginx-rtmp
-    - name: "localhost:5000/rtmp-auth"
-      path: /root/stack/auth-server
+    # - name: "{{ nginx_image }}"
+      # path: /root/docker-build/nginx
+    # - name: "{{ nginx_rtmp_image }}"
+      # path: /root/docker-build/nginx-rtmp
+    - name: "{{ rtmp_auth_image }}"
+      path: /root/docker-build/auth-server
 

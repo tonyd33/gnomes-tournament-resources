@@ -24,3 +24,7 @@ variable "storage_size" {
 variable "mount_point" {
   default = "/mnt/rtmp"
 }
+
+variable "cidr_block" {
+  default = "10.0.0.0/16"
+}

@@ -1,0 +1,47 @@
+networks:
+  {{ rtmp_network }}:
+    driver: overlay
+    attachable: true
+  {{ ingress_network }}:
+    external: true
+    name: {{ ingress_network }}
+
+services:
+  rtmp-auth:
+    image: "{{ rtmp_auth_image }}"
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+    restart: unless-stopped
+    environment:
+      - PORT=6570
+    networks:
+      - {{ rtmp_network }}
+      - {{ ingress_network }}
+    volumes:
+      - "{{ stream_keys_path }}:/app/stream-keys"
+
+  {{ nginx_rtmp_container }}:
+    image: "{{ nginx_rtmp_image }}"
+    depends_on:
+      - rtmp-auth
+    deploy:
+      replicas: {{ rtmp_replicas }}
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - {{ rtmp_network }}
+      - {{ ingress_network }}
+    volumes:
+      - "{{ recordings_path }}:/var/rtmp/recordings"
+      - "{{ hls_path }}:/var/rtmp/hls"
+      - "/root/stacks/nginx-rtmp/nginx.conf:/etc/nginx/nginx.conf"
+

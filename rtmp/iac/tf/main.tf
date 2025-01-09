@@ -36,7 +36,6 @@ resource "aws_volume_attachment" "master_attach" {
   instance_id = aws_instance.swarm_master.id
 }
 
-
 # Master Node
 # Yes, only one. I'm not so concerned about fault tolerance here. I just want
 # the easy service discovery and network mesh with Docker Swarm.
@@ -45,7 +44,13 @@ resource "aws_instance" "swarm_master" {
   ami             = "ami-0657605d763ac72a8"
   instance_type   = var.master_instance_type
   key_name        = aws_key_pair.swarm_key.key_name
-  security_groups = [aws_security_group.swarm.name]
+  vpc_security_group_ids = [
+    aws_security_group.public.id,
+    aws_security_group.swarm.id,
+    aws_security_group.gluster.id,
+    aws_security_group.egress.id,
+  ]
+  subnet_id      = aws_subnet.public_subnet.id
   tags = {
     Name = "Swarm-Master"
   }
@@ -74,10 +79,16 @@ resource "aws_instance" "swarm_workers" {
   ami             = "ami-0657605d763ac72a8"
   instance_type   = var.worker_instance_type
   key_name        = aws_key_pair.swarm_key.key_name
-  security_groups = [aws_security_group.swarm.name]
+  vpc_security_group_ids = [
+    aws_security_group.public.id,
+    aws_security_group.swarm.id,
+    aws_security_group.gluster.id,
+    aws_security_group.egress.id,
+  ]
   tags = {
     Name = "Swarm-Worker-${count.index + 1}"
   }
+  subnet_id      = aws_subnet.public_subnet.id
   user_data = <<-EOF
     #!/bin/bash
     hostnamectl set-hostname worker-${count.index + 1}

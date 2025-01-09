@@ -1,6 +1,37 @@
 debug_certs: false
+certs_dry_run: false
 generate_stream_keys: true
 override_stream_keys: false
 
-ssl_cert_name: "cert"
-ssl_key_name: "key"
+ssl_cert_path: /mnt/rtmp/shared-resources/cert
+ssl_key_path: /mnt/rtmp/shared-resources/key
+
+stream_keys_path: /mnt/rtmp/shared-resources/stream-keys
+recordings_path: /mnt/rtmp/recordings
+hls_path: /mnt/rtmp/hls
+
+rtmp_auth_image: "localhost:5000/rtmp-auth"
+nginx_rtmp_image: "tiangolo/nginx-rtmp:latest-2025-01-06"
+nginx_image: "nginx"
+
+nginx_rtmp_container: nginx-rtmp
+
+rtmp_network: rtmp
+rtmp_replicas: 1
+rtmp_ingress_port: 1935
+rtmps_ingress_port: 1936
+
+portainer_app_name: prt
+portainer_agent_secret: "{{ secrets.portainer_agent_secret }}"
+portainer_admin_password: "{{ secrets.portainer_admin_password }}"
+portainer_admin_port: 9000
+portainer_tunnel_port: 8000
+portainer_network: portainer
+portainer_container_name: portainer
+
+ingress_network: nginx-ingress
+
+porkbun_api_key: "{{ secrets.porkbun_api_key }}"
+porkbun_secret_key: "{{ secrets.porkbun_secret_key }}"
+
+app_domain_name: gnomes.moe
