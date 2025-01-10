@@ -1,9 +1,14 @@
 - name: Set up directories
   when: inventory_hostname == groups.master[0]
   file:
-    path: /root/stacks/nginx-rtmp
+    path: "{{ item }}"
     state: directory
     mode: '755'
+  loop:
+    - /root/stacks/nginx-rtmp
+    - /mnt/rtmp/recordings
+    - /mnt/rtmp/hls
+    - /mnt/rtmp/shared-resources
 
 - name: Check if stream keys exists
   stat:
@@ -31,7 +36,7 @@
     - src: rtmp-stack.yml.j2
       dest: /root/stacks/rtmp-stack.yml
     - src: nginx.conf.j2
-      dest: /root/stacks/nginx-rtmp/nginx.conf
+      dest: "{{ nginx_rtmp_config_path }}"
 
 
 - name: Deploy stack from a compose file (on first swarm node)

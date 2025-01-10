@@ -6,9 +6,12 @@ override_stream_keys: false
 ssl_cert_path: /mnt/rtmp/shared-resources/cert
 ssl_key_path: /mnt/rtmp/shared-resources/key
 
+nginx_rtmp_config_path: /mnt/rtmp/shared-resources/nginx-rtmp.conf
 stream_keys_path: /mnt/rtmp/shared-resources/stream-keys
 recordings_path: /mnt/rtmp/recordings
 hls_path: /mnt/rtmp/hls
+
+# rtmp_socket: /mnt/rtmp/sock
 
 rtmp_auth_image: "localhost:5000/rtmp-auth"
 nginx_rtmp_image: "tiangolo/nginx-rtmp:latest-2025-01-06"

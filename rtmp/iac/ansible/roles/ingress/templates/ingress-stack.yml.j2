@@ -17,6 +17,10 @@ services:
           cpus: '0.5'
           memory: 512M
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
     ports:
       - "80:80"
       - "443:443"

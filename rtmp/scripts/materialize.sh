@@ -212,16 +212,11 @@ EOF
 ansible-playbook \
   -i "$ANSIBLE_INVENTORY" main.yml \
   -e "$ANSIBLE_OVERRIDES"
-deactivate
 cd -
 echo
 
-STREAM_KEYS_FILE=$(mktemp)
-scp ubuntu@rtmp.gnomes.moe:/mnt/rtmp/shared-resources/stream-keys "$STREAM_KEYS_FILE"
 cat <<EOF
 All done.
-
-Stream keys are available at $STREAM_KEYS_FILE
 
 SSH into the master node with:
 ssh ubuntu@${SUBDOMAINS[0]}.$DOMAIN

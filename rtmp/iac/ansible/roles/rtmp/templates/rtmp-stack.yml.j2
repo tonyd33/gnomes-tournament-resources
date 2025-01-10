@@ -16,6 +16,10 @@ services:
           cpus: '0.1'
           memory: 64M
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
     environment:
       - PORT=6570
     networks:
@@ -34,7 +38,14 @@ services:
         limits:
           cpus: '0.5'
           memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
     ports:
       - "8080:8080"
     networks:
@@ -43,5 +54,5 @@ services:
     volumes:
       - "{{ recordings_path }}:/var/rtmp/recordings"
       - "{{ hls_path }}:/var/rtmp/hls"
-      - "/root/stacks/nginx-rtmp/nginx.conf:/etc/nginx/nginx.conf"
+      - "{{ nginx_rtmp_config_path }}:/etc/nginx/nginx.conf"
 

@@ -55,6 +55,10 @@ resource "aws_instance" "swarm_master" {
     Name = "Swarm-Master"
   }
 
+  root_block_device {
+    volume_size = 64
+  }
+
   user_data = <<-EOF
     #!/bin/bash
     hostnamectl set-hostname master
@@ -88,7 +92,12 @@ resource "aws_instance" "swarm_workers" {
   tags = {
     Name = "Swarm-Worker-${count.index + 1}"
   }
+
   subnet_id      = aws_subnet.public_subnet.id
+
+  root_block_device {
+    volume_size = 64
+  }
   user_data = <<-EOF
     #!/bin/bash
     hostnamectl set-hostname worker-${count.index + 1}

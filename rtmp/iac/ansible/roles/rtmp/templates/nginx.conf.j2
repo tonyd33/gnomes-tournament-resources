@@ -22,7 +22,7 @@ rtmp {
             # hls
             hls on;
             hls_path /var/rtmp/hls;
-            hls_fragment 3;
+            hls_fragment 15s;
             hls_playlist_length 60;
         }
     }
@@ -54,7 +54,7 @@ http {
             video/mp2t ts;
         }
 
-        root /rtmp/;
+        root /var/rtmp;
     }
   }
 }
