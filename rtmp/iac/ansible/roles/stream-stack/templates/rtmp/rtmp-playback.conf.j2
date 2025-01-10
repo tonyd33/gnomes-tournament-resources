@@ -1,0 +1,20 @@
+worker_processes auto;
+rtmp_auto_push on;
+events {}
+user root root;
+rtmp {
+    server {
+        listen {{ rtmp_port }};
+        chunk_size {{ rtmp_chunk_size }};
+
+        application live {
+            live on;
+
+            on_publish http://rtmp-auth:6570/publish;
+            on_play http://rtmp-auth:6570/play;
+            on_play_done http://rtmp-auth:6570/play-done;
+            on_record_done http://rtmp-auth:6570/record-done;
+        }
+    }
+}
+

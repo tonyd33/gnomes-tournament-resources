@@ -25,6 +25,7 @@
           - python3-certbot
           - python3-jsondiff
           - apache2-utils
+          - redis-tools
         update_cache: yes
         state: present
 
@@ -52,6 +53,6 @@
 - hosts: master
   tags: [deploy]
   roles:
-    - ingress
+    - traefik
     - portainer
-    - rtmp
+    - stream-stack

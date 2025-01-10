@@ -1,0 +1,20 @@
+listen              {{ srt_port }};
+max_connections     1000;
+
+vhost __defaultVhost__ {
+    srt {
+        enabled     on;
+        listen      {{ srt_port }};
+        latency     200;
+        backlog     512;
+    }
+
+    dvr {
+        enabled on;
+        dvr_path /recordings/[app]/[stream].[timestamp].mp4;
+        dvr_plan session;
+        dvr_duration 30;
+        dvr_wait_keyframe on;
+    }
+}
+

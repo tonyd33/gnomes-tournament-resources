@@ -5,9 +5,9 @@ networks:
     driver: overlay
     attachable: true
     name: {{ portainer_network }}
-  {{ ingress_network }}:
+  {{ traefik_network }}:
     external: true
-    name: {{ ingress_network }}
+    name: {{ traefik_network }}
 
 services:
   agent:
@@ -34,10 +34,17 @@ services:
       - /root/stacks/portainer:/data
     networks:
       - {{ portainer_network }}
-      - {{ ingress_network }}
+      - {{ traefik_network }}
     environment:
       AGENT_SECRET: {{portainer_agent_secret}}
     deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.portainer.entrypoints=websecure"
+        - "traefik.http.routers.portainer.tls=true"
+        - "traefik.http.routers.portainer.rule=Host(`{{portainer_app_name}}.{{app_domain_name}}`)"
+        - "traefik.http.services.portainer.loadbalancer.server.port={{portainer_admin_port}}"
+        - "traefik.docker.network={{traefik_network}}"
       mode: replicated
       replicas: 1
       placement:

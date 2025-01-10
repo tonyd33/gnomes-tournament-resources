@@ -1,18 +1,14 @@
 worker_processes auto;
 rtmp_auto_push on;
 events {}
-# run as root otherwise worker processes will run as nobody:nogroup and the
-# recordings will be owned by nobody:nogroup which is kind of annoying.
 user root root;
 rtmp {
     server {
-        listen 1935;
-        chunk_size 4096;
+        listen {{ rtmp_port }};
+        chunk_size {{ rtmp_chunk_size }};
 
         application live {
             live on;
-
-            on_publish http://rtmp-auth:6570/auth;
 
             # recordings
             record all;
@@ -21,4 +17,5 @@ rtmp {
         }
     }
 }
+
 

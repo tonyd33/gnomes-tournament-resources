@@ -6,13 +6,13 @@
 
 - name: Create mountpoint
   file:
-    path: /mnt/rtmp
+    path: "{{ gluster_path }}"
     state: directory
     mode: '755'
 
 - name: Mount GlusterFS volume
   mount:
-    path: /mnt/rtmp
+    path: "{{ gluster_path }}"
     src: "{{ master_facts.advertise_addr }}:/rtmp"
     fstype: glusterfs
     state: mounted

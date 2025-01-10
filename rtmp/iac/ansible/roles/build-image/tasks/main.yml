@@ -2,7 +2,7 @@
   shell:
     cmd: "docker service ls | grep registry"
   register: registry
-  ignore_errors: true
+  failed_when: false
   changed_when: false
 
 - name: Set up registry

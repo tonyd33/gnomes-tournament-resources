@@ -1,0 +1,39 @@
+- name: Set up directories
+  when: inventory_hostname == groups.master[0]
+  file:
+    path: /root/stacks/traefik
+    state: directory
+    mode: '755'
+
+- name: Generate admin password hash
+  when: inventory_hostname == groups.master[0]
+  shell: |
+    if [ -f /root/stacks/traefik/passwd ]; then
+      echo /root/stacks/traefik/passwd
+    else
+      echo $(htpasswd -nb {{traefik_admin_user}} {{traefik_admin_password}}) |\
+        sed -e s/\\$/\\$\\$/g |\
+        tee /root/stacks/traefik/passwd
+    fi
+  register: traefikpassword
+
+- name: Create docker-compose stack file (on first swarm node)
+  when: inventory_hostname == groups.master[0]
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: 0775
+  loop:
+    - src: traefik-stack.yml.j2
+      dest: /root/stacks/traefik-stack.yml
+    - src: traefik.yml.j2
+      dest: /root/stacks/traefik/traefik.yml
+
+
+- name: Deploy stack from a compose file (on first swarm node)
+  when: inventory_hostname == groups.master[0]
+  docker_stack:
+    state: present
+    name: traefik
+    compose:
+      - /root/stacks/traefik-stack.yml

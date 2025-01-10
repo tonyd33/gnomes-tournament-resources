@@ -1,0 +1,83 @@
+networks:
+  {{ srt_network }}:
+    driver: overlay
+    attachable: true
+
+services:
+  srt-auth:
+    image: "{{ rtmp_auth_image }}"
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
+    environment:
+      - PORT=6570
+    networks:
+      - {{ srt_network }}
+    volumes:
+      - "{{ stream_keys_path }}:/app/stream-keys"
+
+  {{ srt_ingest_container }}:
+    image: {{ srt_image }}
+    deploy:
+      replicas: {{ srt_ingest_replicas }}
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    networks:
+      - {{ srt_network }}
+    ports:
+      # - "{{ srt_rtmp_ingress_port }}:{{ srt_rtmp_ingress_port }}" # RTMP for fallback
+      - "{{ srt_ingress_port }}:{{ srt_port }}"
+    command:
+      - ./objs/srs
+      - -c
+      - conf/custom.conf
+    volumes:
+      - "{{ srt_ingest_config_path }}:/usr/local/srs/conf/custom.conf"
+
+  {{ srt_recording_container }}:
+    image: {{ srt_image }}
+    deploy:
+      replicas: {{ srt_recording_replicas }}
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    networks:
+      - {{ srt_network }}
+    volumes:
+      - {{ recordings_path }}:/recordings
+      - {{ srt_recording_config_path }}:/usr/local/srs/conf/custom.conf
+
+  {{ srt_playback_container }}:
+    image: {{ srt_image }}
+    deploy:
+      replicas: {{ srt_playback_replicas }}
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    networks:
+      - {{ srt_network }}
+    ports:
+      - "{{ srt_egress_port }}:{{ srt_port }}"
+    volumes:
+      - {{ srt_playback_config_path }}:/usr/local/srs/conf/custom.conf
+

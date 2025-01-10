@@ -1,9 +1,6 @@
 variable "master_instance_type" {
   description = "Instance type on the master"
-  # This is the weakest instance that hits "Moderate" network performance.
-  # The master node also acts as our ingress/egress node so we may need this
-  # bandwidth.
-  default     = "t2.xlarge"
+  default = "t3.medium"
 }
 
 variable "worker_count" {
@@ -18,11 +15,12 @@ variable "worker_instance_type" {
 
 variable "storage_size" {
   description = "Storage size in gigabytes"
-  default = 500
+  default     = 50
 }
 
 variable "mount_point" {
-  default = "/mnt/rtmp"
+  # Keep this in sync with gluster_path in ansible vars
+  default = "/mnt/glustershare"
 }
 
 variable "cidr_block" {

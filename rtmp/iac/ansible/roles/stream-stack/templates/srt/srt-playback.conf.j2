@@ -1,0 +1,12 @@
+listen              {{ srt_port }};
+max_connections     1000;
+
+vhost __defaultVhost__ {
+    srt {
+        enabled     on;
+        listen      {{ srt_port }};
+        latency     200;
+        backlog     512;
+    }
+}
+

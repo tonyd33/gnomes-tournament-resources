@@ -11,8 +11,23 @@ resource "aws_security_group" "public" {
   # rtmp(s)
   ingress {
     from_port   = 1935
-    to_port     = 1936
+    to_port     = 1940
     protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # srt
+  ingress {
+    from_port   = 8000
+    to_port     = 8001
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 8000
+    to_port     = 8001
+    protocol    = "udp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 

@@ -1,0 +1,25 @@
+- name: Create docker-compose stack file (on first swarm node)
+  when: inventory_hostname == groups.master[0]
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: '0775'
+  loop:
+    - src: srt/srt-stack.yml.j2
+      dest: /root/stacks/srt-stack.yml
+    - src: srt/srt-ingest.conf.j2
+      dest: "{{ srt_ingest_config_path }}"
+    - src: srt/srt-playback.conf.j2
+      dest: "{{ srt_playback_config_path }}"
+    - src: srt/srt-recording.conf.j2
+      dest: "{{ srt_recording_config_path }}"
+
+- name: Deploy stack from a compose file (on first swarm node)
+  when: inventory_hostname == groups.master[0]
+  docker_stack:
+    state: present
+    name: srt
+    compose:
+      - /root/stacks/srt-stack.yml
+
+

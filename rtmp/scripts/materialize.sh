@@ -8,7 +8,7 @@ SCRIPT_NAME=${0##*/}
 TERRAFORM_DIR="$(realpath $DIR/../iac/tf)"
 ANSIBLE_DIR="$(realpath $DIR/../iac/ansible)"
 ANSIBLE_INVENTORY="$(realpath $ANSIBLE_DIR/inventory.ini)"
-SUBDOMAINS=(rtmp prt)
+SUBDOMAINS=(rtmp prt ri)
 
 DEFAULT_WORKERS=2
 DEFAULT_STORAGE_SIZE=25
@@ -18,7 +18,6 @@ DEFAULT_PORKBUN_API_KEY="$HOME/.secrets/porkbun-api-key"
 DEFAULT_PORKBUN_SECRET_KEY="$HOME/.secrets/porkbun-secret-key"
 DEFAULT_DEBUG_CERTS=false
 DEFAULT_DOMAIN="gnomes.moe"
-DEFAULT_RTMP_REPLICAS=2
 
 WORKERS="$DEFAULT_WORKERS"
 STORAGE_SIZE="$DEFAULT_STORAGE_SIZE"
@@ -28,7 +27,6 @@ PORKBUN_API_KEY="$DEFAULT_PORKBUN_API_KEY"
 PORKBUN_SECRET_KEY="$DEFAULT_PORKBUN_SECRET_KEY"
 DEBUG_CERTS="$DEFAULT_DEBUG_CERTS"
 DOMAIN="$DEFAULT_DOMAIN"
-RTMP_REPLICAS="$DEFAULT_RTMP_REPLICAS"
 
 function print_help {
   cat <<EOF
@@ -52,8 +50,6 @@ Required options:
                                          Default: $DEFAULT_DEBUG_CERTS
   --domain [domain]                      Domain for DNS.
                                          Default: $DEFAULT_DOMAIN
-  --rtmp-replicas [number]               Number of RTMP replicas.
-                                         Default: $DEFAULT_RTMP_REPLICAS
 EOF
 }
 
@@ -83,10 +79,6 @@ while [ $# -gt 0 ]; do
       PORKBUN_SECRET_KEY="$2"
       shift 2
       ;;
-    --rtmp-replicas)
-      RTMP_REPLICAS="$2"
-      shift 2
-      ;;
     --debug-certs)
       DEBUG_CERTS=true
       shift
@@ -110,7 +102,6 @@ PORKBUN_API_KEY      = $PORKBUN_API_KEY
 PORKBUN_SECRET_KEY   = $PORKBUN_SECRET_KEY
 DEBUG_CERTS          = $DEBUG_CERTS
 DOMAIN               = $DOMAIN
-RTMP_REPLICAS        = $RTMP_REPLICAS
 
 yes/no
 EOF
@@ -205,7 +196,6 @@ cat <<EOF
   override_stream_keys: false,
   debug_certs: $DEBUG_CERTS,
   app_domain_name: $DOMAIN,
-  rtmp_replicas: $RTMP_REPLICAS
 }
 EOF
 )

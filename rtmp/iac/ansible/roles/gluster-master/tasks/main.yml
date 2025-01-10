@@ -20,12 +20,12 @@
   shell: 
     cmd: "gluster volume list | grep rtmp"
   register: glustervolume
-  ignore_errors: true
+  failed_when: false
   changed_when: false
 
 - name: Create Gluster volume
   shell:
-    cmd: "gluster volume create rtmp {{ advertise_addr }}:/mnt/rtmp force"
+    cmd: "gluster volume create rtmp {{ advertise_addr }}:{{ gluster_path }} force"
   when: glustervolume.rc != 0
   changed_when: false
 
@@ -33,7 +33,7 @@
   shell:
     cmd: "gluster volume status rtmp"
   register: glustervolume
-  ignore_errors: true
+  failed_when: false
   changed_when: false
 
 - name: Start Gluster volume
@@ -44,7 +44,7 @@
 
 - name: Set up directory structure
   file:
-    path: "/mnt/rtmp/{{ item }}"
+    path: "{{ gluster_path }}/{{ item }}"
     state: directory
     mode: '755'
   loop:

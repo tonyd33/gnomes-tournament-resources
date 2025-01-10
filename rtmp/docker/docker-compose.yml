@@ -3,55 +3,62 @@ networks:
     driver: bridge
 
 services:
+  redis:
+    image: redis
+    container_name: redis
+    networks:
+      - rtmp
+    ports:
+      - 6379:6379
+
+  redisinsight:
+    image: redis/redisinsight
+    container_name: redisinsight
+    networks:
+      - rtmp
+    ports:
+      - 5540:5540
+
   rtmp-auth:
     container_name: rtmp-auth
+    depends_on:
+      - redis
     build:
-      context: ./auth-server
+      context: ../iac/ansible/roles/build-image/files/auth-server
     restart: unless-stopped
     environment:
       - PORT=6570
-      - "STREAM_KEYS=./stream-keys"
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks:
       - rtmp
     volumes:
       - "./stream-keys:/app/stream-keys"
 
-  nginx-rtmp:
-    container_name: nginx-rtmp
-    # Mounting the configuration is a bit of a pain because of file permissions.
-    # I don't want to have to expect nginx.conf to be owned by root or chown
-    # nginx.conf to root before mounting it or before running the original
-    # entrypoint. It's easier and more flexible to just build it in lol.
-    build:
-      context: ./nginx-rtmp
+  rtmp-playback:
+    image: "tiangolo/nginx-rtmp:latest-2025-01-06"
+    container_name: rtmp-playback
     depends_on:
-      rtmp-auth:
-        condition: service_healthy
+      - rtmp-auth
+    restart: unless-stopped
+    ports:
+      - "1936:1935"
+    networks:
+      - rtmp
+    volumes:
+      - "../iac/ansible/roles/stream-stack/templates/rtmp/rtmp-playback.conf:/etc/nginx/nginx.conf"
+
+  rtmp-ingest:
+    image: "tiangolo/nginx-rtmp:latest-2025-01-06"
+    container_name: rtmp-ingest
+    depends_on:
+      - rtmp-auth
+      - rtmp-playback
     restart: unless-stopped
     ports:
       - "1935:1935"
     networks:
       - rtmp
     volumes:
-      - "./data/recordings:/var/rtmp/recordings"
+      - "../iac/ansible/roles/stream-stack/templates/rtmp/rtmp-ingest.conf:/etc/nginx/nginx.conf"
 
-  # I want RTMP to be SSL-secured, but it seems like the nginx binary wasn't
-  # compiled for the stream directive to work. So I'm using the official nginx
-  # image here, which does support the stream directive to proxy and provide SSL.
-  # Additionally, this may be useful for if we want to act as a reverse proxy
-  # for other HTTP or stream stuff on this server.
-  nginx:
-    container_name: nginx
-    build:
-      context: nginx
-    depends_on:
-      nginx-rtmp:
-        condition: service_healthy
-    restart: unless-stopped
-    ports:
-      - "1936:1936"
-    networks:
-      - rtmp
-    volumes:
-      - "${SSL_CERT:-./domain.crt}:/etc/nginx/ssl/fullchain.pem"
-      - "${SSL_KEY:-./domain.key}:/etc/nginx/ssl/privkey.pem"
