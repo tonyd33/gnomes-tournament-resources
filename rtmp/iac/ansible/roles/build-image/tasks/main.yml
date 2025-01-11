@@ -33,10 +33,6 @@
       - push: true
         type: image
   loop:
-    # - name: "{{ nginx_image }}"
-      # path: /root/docker-build/nginx
-    # - name: "{{ nginx_rtmp_image }}"
-      # path: /root/docker-build/nginx-rtmp
     - name: "{{ rtmp_auth_image }}"
       path: /root/docker-build/auth-server
 

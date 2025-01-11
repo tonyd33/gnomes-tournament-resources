@@ -7,12 +7,19 @@
   loop:
     - src: rtmp/rtmp-stack.yml.j2
       dest: /root/stacks/rtmp-stack.yml
-    - src: rtmp/nginx.conf.j2
-      dest: "{{ rtmp_ingress_config_path }}"
+
+    - src: rtmp/nginx-playback.conf.j2
+      dest: "{{ rtmp_playback_proxy_config_path }}"
+
+    - src: rtmp/nginx-ingest.conf.j2
+      dest: "{{ rtmp_ingest_proxy_config_path }}"
+
     - src: rtmp/rtmp-ingest.conf.j2
       dest: "{{ rtmp_ingest_config_path }}"
+
     - src: rtmp/rtmp-playback.conf.j2
       dest: "{{ rtmp_playback_config_path }}"
+
     - src: rtmp/rtmp-recording.conf.j2
       dest: "{{ rtmp_recording_config_path }}"
 

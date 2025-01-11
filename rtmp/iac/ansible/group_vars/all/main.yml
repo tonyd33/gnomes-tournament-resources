@@ -7,7 +7,6 @@ gluster_path: /mnt/glustershare
 ssl_cert_path: "{{ gluster_path }}/shared-resources/cert"
 ssl_key_path: "{{ gluster_path }}/shared-resources/key"
 
-stream_keys_path: "{{ gluster_path }}/shared-resources/stream-keys"
 # Keep this in sync with the terraform mount path
 recordings_path: /mnt/recordings
 
@@ -20,6 +19,8 @@ rtmp_auth_image: "localhost:5000/rtmp-auth"
 nginx_rtmp_image: "tiangolo/nginx-rtmp:latest-2025-01-06"
 nginx_image: "nginx"
 
+rtmp_redis_data_path: "{{ gluster_path }}/redis"
+
 rtmp_ingest_container: rtmp-ingest
 rtmp_recording_container: rtmp-recording
 rtmp_playback_container: rtmp-playback
@@ -27,7 +28,8 @@ rtmp_playback_container: rtmp-playback
 rtmp_ingest_config_path: "{{ gluster_path }}/shared-resources/rtmp-ingest.conf"
 rtmp_recording_config_path: "{{ gluster_path }}/shared-resources/rtmp-recording.conf"
 rtmp_playback_config_path: "{{ gluster_path }}/shared-resources/rtmp-playback.conf"
-rtmp_ingress_config_path: "{{ gluster_path }}/shared-resources/nginx.conf"
+rtmp_playback_proxy_config_path: "{{ gluster_path }}/shared-resources/nginx-playback.conf"
+rtmp_ingest_proxy_config_path: "{{ gluster_path }}/shared-resources/nginx-ingest.conf"
 
 rtmp_ingest_replicas: 1
 rtmp_recording_replicas: 2
@@ -35,6 +37,7 @@ rtmp_playback_replicas: 1
 
 # internal
 rtmp_port: 1935
+rtmps_port: 1936
 rtmp_chunk_size: 4096
 
 rtmp_network: rtmp
@@ -47,60 +50,6 @@ rtmps_egress_port: 1938
 hls_path: "{{ gluster_path }}/hls"
 # END: RTMP
 
-
-# BEGIN: SRT
-# Do not enable this. This has not been properly set up.
-srt_enabled: false
-srt_image: "ossrs/srs:5"
-
-srt_ingest_container: srt-ingest
-srt_recording_container: srt-recording
-srt_playback_container: srt-playback
-
-srt_ingest_config_path: "{{ gluster_path }}/shared-resources/srt-ingest.conf"
-srt_recording_config_path: "{{ gluster_path }}/shared-resources/srt-recording.conf"
-srt_playback_config_path: "{{ gluster_path }}/shared-resources/srt-playback.conf"
-
-srt_ingest_replicas: 1
-srt_recording_replicas: 1
-srt_playback_replicas: 1
-
-# internal
-srt_port: 8000
-
-srt_network: srt
-srt_ingress_port: 8000
-srt_rtmp_ingress_port: 1937
-srt_egress_port: 8001
-# no srt rtmp egress.
-
-# END: SRT
-
-# BEGIN: WebRTC
-webrtc_image: "meetecho/janus-gateway"
-
-webrtc_ingest_container: webrtc-ingest
-webrtc_recording_container: webrtc-recording
-webrtc_playback_container: webrtc-playback
-
-webrtc_ingest_config_path: "{{ gluster_path }}/shared-resources/webrtc-ingest.cfg"
-webrtc_recording_config_path: "{{ gluster_path }}/shared-resources/webrtc-recording.cfg"
-webrtc_playback_config_path: "{{ gluster_path }}/shared-resources/webrtc-playback.cfg"
-
-webrtc_ingest_replicas: 3
-webrtc_recording_replicas: 2
-webrtc_playback_replicas: 1
-
-# internal
-webrtc_port: 8000
-
-webrtc_network: webrtc
-webrtc_ingress_port: 8000
-webrtc_rtmp_ingress_port: 1937
-webrtc_egress_port: 8000
-# no srt rtmp egress.
-
-# END: WebRTC
 
 # BEGIN: Portainer
 portainer_app_name: prt
@@ -118,6 +67,7 @@ traefik_network: traefik
 traefik_admin_user: admin
 traefik_admin_password: "{{ secrets.traefik_admin_password }}"
 traefik_listen_port: 80
+traefik_secure_listen_port: 443
 traefik_admin_port: 8080
 # END: Traefik
 
@@ -125,7 +75,22 @@ traefik_admin_port: 8080
 redisinsight_app_name: ri
 # END: redisinsight
 
-# BEGIN: Porkbun
+# BEGIN: Monitor
+monitor_network: monitor
+node_exporter_container_name: node-exporter
+cadvisor_container_name: cadvisor
+prometheus_config_path: "{{ gluster_path }}/shared-resources/prometheus/prometheus.yml"
+prometheus_data_path: "{{ gluster_path }}/shared-resources/prometheus/data"
+prometheus_app_name: prom
+grafana_data_path: "{{ gluster_path }}/shared-resources/grafana/data"
+grafana_admin_password: "{{ secrets.grafana_admin_password }}"
+grafana_app_name: gf
+# END: Monitor
+
+# BEGIN: API Keys
 porkbun_api_key: "{{ secrets.porkbun_api_key }}"
 porkbun_secret_key: "{{ secrets.porkbun_secret_key }}"
-# END: Porkbun
+
+aws_access_key_id: "{{ secrets.aws_access_key_id }}"
+aws_secret_access_key: "{{ secrets.aws_secret_access_key }}"
+# END: API Keys

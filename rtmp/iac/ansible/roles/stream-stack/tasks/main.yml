@@ -5,16 +5,21 @@
     state: directory
     mode: '755'
   loop:
-    - "{{ gluster_path }}/recordings"
-    - "{{ gluster_path }}/hls"
+    - "{{ rtmp_redis_data_path }}"
     - "{{ gluster_path }}/shared-resources"
+
+- name: Copy keys
+  copy:
+    content: |
+      [default]
+      aws_access_key_id = {{ aws_access_key_id }}
+      aws_secret_access_key = {{ aws_secret_access_key }}
+    dest: "{{ gluster_path }}/shared-resources/aws-credentials"
+  when: aws_access_key_id is defined and aws_secret_access_key is defined
+
 
 - import_tasks: rtmp.yml
   when: rtmp_enabled
-
-- import_tasks: srt.yml
-  when: srt_enabled
-
 
 - name: Check stream key mark
   shell: |
@@ -24,10 +29,11 @@
       --network {{ rtmp_network }} \
       --name redis-cli \
       redis \
-      redis-cli GET MARK_GENERATED |\
+      redis-cli -h redis GET MARK_GENERATED |\
     grep TRUE
   register: stream_key_generated
   failed_when: false
+  changed_when: false
 
 - name: Generate stream keys
   when: inventory_hostname == groups.master[0] and generate_stream_keys and stream_key_generated.rc != 0
@@ -49,5 +55,8 @@
       while read line; do
         redis-cli -h redis SET $line $line
       done < /tmp/random-keys
+
+      echo "Marking generated"
       redis-cli -h redis SET MARK_GENERATED TRUE
       '
+  register: stk

@@ -7,7 +7,15 @@
 
 - name: Generate admin password hash
   when: inventory_hostname == groups.master[0]
-  shell: echo $(htpasswd -nBb admin {{portainer_admin_password}}) | cut -d ":" -f 2 | sed -e s/\\$/\\$\\$/g
+  shell: |
+    if [ -f /root/stacks/portainer/passwd ]; then
+      cat /root/stacks/portainer/passwd
+    else
+      echo $(htpasswd -nBb admin {{portainer_admin_password}}) |\
+        cut -d ":" -f 2 |\
+        sed -e s/\\$/\\$\\$/g |\
+        tee /root/stacks/portainer/passwd
+    fi
   register: portainerpassword
 
 - name: Create docker-compose stack file (on first swarm node)

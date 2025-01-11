@@ -11,9 +11,8 @@ services:
       - "--api.dashboard=true"
       - "--providers.docker"
       - "--providers.docker.swarmMode=true"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
       - "--entrypoints.web.address=:{{traefik_listen_port}}"
+      - "--entrypoints.websecure.address=:{{traefik_secure_listen_port}}"
       - "--providers.docker.exposedByDefault=false"
       - "--providers.file.filename=/config/traefik.yml"
     ports:

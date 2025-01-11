@@ -13,11 +13,13 @@ provider "aws" {
   region = "ca-west-1"
 }
 
+
 # Key Pair for SSH Access
 resource "aws_key_pair" "swarm_key" {
   key_name   = "swarm-key"
   public_key = file("~/.ssh/id_rsa.pub")
 }
+
 
 resource "aws_ebs_volume" "master_storage" {
   availability_zone = aws_instance.swarm_master.availability_zone
@@ -34,19 +36,25 @@ resource "aws_volume_attachment" "master_attach" {
   instance_id = aws_instance.swarm_master.id
 }
 
+resource "aws_iam_instance_profile" "rtmp_instance_profile" {
+  name = "rtmp-instance-profile"
+  role = aws_iam_role.rtmp_role.name
+}
+
 # Master Node
 resource "aws_instance" "swarm_master" {
   # ubuntu 24.04
-  ami             = "ami-0049815cd593da697"
-  instance_type   = var.master_instance_type
-  key_name        = aws_key_pair.swarm_key.key_name
+  ami           = "ami-0049815cd593da697"
+  instance_type = var.master_instance_type
+  key_name      = aws_key_pair.swarm_key.key_name
   vpc_security_group_ids = [
     aws_security_group.public.id,
     aws_security_group.swarm.id,
     aws_security_group.gluster.id,
     aws_security_group.egress.id,
   ]
-  subnet_id      = aws_subnet.public_subnet.id
+  iam_instance_profile = aws_iam_instance_profile.rtmp_instance_profile.name
+  subnet_id            = aws_subnet.public_subnet.id
   tags = {
     Name = "Swarm-Master"
   }
@@ -64,7 +72,7 @@ resource "aws_instance" "swarm_master" {
       mkfs.ext4 /dev/xvdf
     fi
 
-    mkdir -p /mnt/recordings
+    mkdir -p ${var.mount_point}
     echo "/dev/xvdf ${var.mount_point} ext4 defaults,nofail 0 2" >> /etc/fstab
     mount -a
 
@@ -73,17 +81,17 @@ resource "aws_instance" "swarm_master" {
 }
 
 resource "aws_ebs_volume" "workers_storage" {
-  count = var.worker_count
+  count             = var.worker_count
   availability_zone = aws_instance.swarm_master.availability_zone
   size              = var.storage_size
-  type              = "gp3"            # General Purpose SSD
+  type              = "gp3" # General Purpose SSD
   tags = {
     Name = "Worker-Storage"
   }
 }
 
 resource "aws_volume_attachment" "worker_attach" {
-  count = var.worker_count
+  count       = var.worker_count
   device_name = "/dev/xvdf"
   volume_id   = aws_ebs_volume.workers_storage[count.index].id
   instance_id = aws_instance.swarm_workers[count.index].id
@@ -93,20 +101,21 @@ resource "aws_volume_attachment" "worker_attach" {
 resource "aws_instance" "swarm_workers" {
   count = var.worker_count
   # ubuntu 24.04
-  ami             = "ami-0049815cd593da697"
-  instance_type   = var.worker_instance_type
-  key_name        = aws_key_pair.swarm_key.key_name
+  ami           = "ami-0049815cd593da697"
+  instance_type = var.worker_instance_type
+  key_name      = aws_key_pair.swarm_key.key_name
   vpc_security_group_ids = [
     aws_security_group.public.id,
     aws_security_group.swarm.id,
     aws_security_group.gluster.id,
     aws_security_group.egress.id,
   ]
+  iam_instance_profile = aws_iam_instance_profile.rtmp_instance_profile.name
   tags = {
     Name = "Swarm-Worker-${count.index + 1}"
   }
 
-  subnet_id      = aws_subnet.public_subnet.id
+  subnet_id = aws_subnet.public_subnet.id
 
   root_block_device {
     volume_size = 32
@@ -120,7 +129,7 @@ resource "aws_instance" "swarm_workers" {
       mkfs.ext4 /dev/xvdf
     fi
 
-    mkdir -p /mnt/recordings
+    mkdir -p ${var.mount_point}
     echo "/dev/xvdf ${var.mount_point} ext4 defaults,nofail 0 2" >> /etc/fstab
     mount -a
 

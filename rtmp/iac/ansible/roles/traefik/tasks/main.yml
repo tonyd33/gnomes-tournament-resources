@@ -9,7 +9,7 @@
   when: inventory_hostname == groups.master[0]
   shell: |
     if [ -f /root/stacks/traefik/passwd ]; then
-      echo /root/stacks/traefik/passwd
+      cat /root/stacks/traefik/passwd
     else
       echo $(htpasswd -nb {{traefik_admin_user}} {{traefik_admin_password}}) |\
         sed -e s/\\$/\\$\\$/g |\

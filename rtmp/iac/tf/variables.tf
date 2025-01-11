@@ -1,6 +1,6 @@
 variable "master_instance_type" {
   description = "Instance type on the master"
-  default = "t3.medium"
+  default     = "t3.medium"
 }
 
 variable "worker_count" {
@@ -10,7 +10,7 @@ variable "worker_count" {
 
 variable "worker_instance_type" {
   description = "Instance type on each worker"
-  default     = "t2.medium"
+  default     = "t3.medium"
 }
 
 variable "storage_size" {
@@ -20,7 +20,7 @@ variable "storage_size" {
 
 variable "mount_point" {
   # Keep this in sync with gluster_path in ansible vars
-  default = "/mnt/glustershare"
+  default = "/mnt/recordings"
 }
 
 variable "cidr_block" {

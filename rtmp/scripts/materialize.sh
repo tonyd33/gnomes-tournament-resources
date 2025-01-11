@@ -8,7 +8,7 @@ SCRIPT_NAME=${0##*/}
 TERRAFORM_DIR="$(realpath $DIR/../iac/tf)"
 ANSIBLE_DIR="$(realpath $DIR/../iac/ansible)"
 ANSIBLE_INVENTORY="$(realpath $ANSIBLE_DIR/inventory.ini)"
-SUBDOMAINS=(rtmp prt ri)
+SUBDOMAINS=(rtmp prt ri trfk prom gf)
 
 DEFAULT_WORKERS=2
 DEFAULT_STORAGE_SIZE=25
@@ -50,6 +50,7 @@ Required options:
                                          Default: $DEFAULT_DEBUG_CERTS
   --domain [domain]                      Domain for DNS.
                                          Default: $DEFAULT_DOMAIN
+  --approve,-y                           Auto approve.
 EOF
 }
 
@@ -83,6 +84,10 @@ while [ $# -gt 0 ]; do
       DEBUG_CERTS=true
       shift
       ;;
+    --approve|-y)
+      APPROVE=true
+      shift
+      ;;
     *)
       print_help
       exit 1
@@ -91,7 +96,8 @@ done
 
 TF_OUTPUTS=$(mktemp)
 
-cat <<EOF
+if [ "$APPROVE" != true ]; then
+  cat <<EOF
 Confirm configuration?
 
 WORKERS              = $WORKERS
@@ -105,11 +111,12 @@ DOMAIN               = $DOMAIN
 
 yes/no
 EOF
-read CONFIRM
+  read CONFIRM
 
-if [ "$CONFIRM" != 'y' ] && [ "$CONFIRM" != 'yes' ]; then
-  echo "Denied. Confirm with yes."
-  exit 1
+  if [ "$CONFIRM" != 'y' ] && [ "$CONFIRM" != 'yes' ]; then
+    echo "Denied. Confirm with yes."
+    exit 1
+  fi
 fi
 
 echo "Applying infrastructure..."
@@ -139,11 +146,11 @@ const inventory = [
 
 process.stdout.write(inventory)
 EOF
-rm "$TF_OUTPUTS"
 echo
 
 MASTER_IP="$(grep -A 1 '\[master\]' "$ANSIBLE_INVENTORY" | tail -n1)"
 
+# Assume these domains already have records
 echo "Setting DNS records..."
 PORKBUN_DATA=$(
 cat <<EOF
@@ -157,10 +164,23 @@ EOF
 )
 for subdomain in ${SUBDOMAINS[@]}; do
   echo "Setting $subdomain"
-  curl -X POST \
+  [ "$(dig +short "${subdomain}.$DOMAIN")" = "$MASTER_IP" ] ||\
+    curl -X POST \
     -L "https://api.porkbun.com/api/json/v3/dns/editByNameType/gnomes.moe/A/$subdomain" \
     -H 'Content-Type: text/plain' \
     -d "$PORKBUN_DATA"
+  echo
+
+
+done
+for subdomain in ${SUBDOMAINS[@]}; do
+  echo -n "Waiting on DNS changes to propagate for $subdomain"
+  for i in $(seq 1 300); do
+    [ "$(dig +short "$subdomain.$DOMAIN")" = "$MASTER_IP" ] && break
+    sleep 1s
+    echo -n .
+  done
+  echo
 done
 echo
 
@@ -177,6 +197,7 @@ echo "$KEYSCAN_IPS" | while read line; do
 done
 
 for subdomain in ${SUBDOMAINS[@]}; do
+  echo "Scanning $subdomain"
   ssh-keygen -R "${subdomain}.$DOMAIN" >/dev/null 2>&1
   ssh-keyscan -H "${subdomain}.$DOMAIN" >> ~/.ssh/known_hosts
 done
@@ -196,6 +217,10 @@ cat <<EOF
   override_stream_keys: false,
   debug_certs: $DEBUG_CERTS,
   app_domain_name: $DOMAIN,
+  porkbun_api_key: $(cat $PORKBUN_SECRET_KEY),
+  porkbun_secret_key: $(cat $PORKBUN_API_KEY),
+  aws_access_key_id: $(cat "$TF_OUTPUTS" | jq '.values.outputs.aws_secret_access_key.value.id'),
+  aws_secret_access_key: $(cat "$TF_OUTPUTS" | jq '.values.outputs.aws_secret_access_key.value.secret')
 }
 EOF
 )
@@ -204,6 +229,9 @@ ansible-playbook \
   -e "$ANSIBLE_OVERRIDES"
 cd -
 echo
+
+# Cleanup
+rm "$TF_OUTPUTS"
 
 cat <<EOF
 All done.
