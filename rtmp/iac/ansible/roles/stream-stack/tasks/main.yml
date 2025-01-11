@@ -8,16 +8,6 @@
     - "{{ rtmp_redis_data_path }}"
     - "{{ gluster_path }}/shared-resources"
 
-- name: Copy keys
-  copy:
-    content: |
-      [default]
-      aws_access_key_id = {{ aws_access_key_id }}
-      aws_secret_access_key = {{ aws_secret_access_key }}
-    dest: "{{ gluster_path }}/shared-resources/aws-credentials"
-  when: aws_access_key_id is defined and aws_secret_access_key is defined
-
-
 - import_tasks: rtmp.yml
   when: rtmp_enabled
 

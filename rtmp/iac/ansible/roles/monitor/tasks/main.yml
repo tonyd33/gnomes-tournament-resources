@@ -31,6 +31,7 @@
   docker_stack:
     state: present
     name: monitor
+    detach: false
     compose:
       - /root/stacks/monitor-stack.yml.j2
 

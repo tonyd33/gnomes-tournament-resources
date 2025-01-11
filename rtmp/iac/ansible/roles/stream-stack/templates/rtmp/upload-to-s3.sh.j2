@@ -1,0 +1,79 @@
+#!/bin/bash
+
+set -eo pipefail
+
+RECORDING_PATH="$1"
+S3_BUCKET="{{ recordings_bucket }}"
+
+function send_webhook() {
+  BODY="$1"
+  curl -X POST \
+    -H "content-type: application/json" \
+    '{{ webhook_url }}' \
+    -d "$BODY"
+}
+
+function construct_body() {
+  TITLE="$1"
+  DESCRIPTION="$2"
+  cat <<EOF
+{
+"content": null,
+"embeds": [
+  {
+    "title": "$TITLE",
+    "description": "$DESCRIPTION",
+    "color": 12500628
+  }
+],
+"attachments": []
+}
+EOF
+}
+
+if ! [ -f "$RECORDING_PATH" ]; then
+  DESCRIPTION="Recording file not found: $RECORDING_PATH"
+  BODY=$(construct_body "[ERR]: $FILENAME failed to upload" "$DESCRIPTION")
+  echo "$DESCRIPTION"
+  send_webhook "$BODY"
+  exit 1
+fi
+
+echo "Uploading $RECORDING_PATH to S3..."
+
+# Extract the filename from the full path
+FILENAME=$(basename "$RECORDING_PATH")
+PARTS=(${FILENAME//-/ })
+DIR=$(dirname "$(realpath "$RECORDING_PATH")")
+
+STREAM_NAME="${PARTS[0]}"
+TIMESTAMP="${PARTS[1]/.flv/}"
+
+if [ -z "$STREAM_NAME" ] || [ -z "$TIMESTAMP" ]; then
+  DESCRIPTION="Failed parsing file name $FILENAME"
+  BODY=$(construct_body "[ERR]: $FILENAME failed to upload" "$DESCRIPTION")
+  echo "$DESCRIPTION"
+  send_webhook "$BODY"
+  exit 1
+fi
+
+cd "$DIR"
+
+tar c "$FILENAME" |\
+  gzip |\
+  aws s3 cp - "s3://$S3_BUCKET/$STREAM_NAME/$TIMESTAMP.tar.gz" --storage-class STANDARD_IA
+
+if [ $? -eq 0 ]; then
+  DESCRIPTION="Upload successful: $FILENAME"
+  BODY=$(construct_body "[INF]: $FILENAME uploaded" "$DESCRIPTION")
+  echo "$DESCRIPTION"
+  send_webhook "$BODY"
+  rm "$RECORDING_PATH"
+  exit 0
+else
+  DESCRIPTION="Upload failed: $FILENAME"
+  BODY=$(construct_body "[ERR]: $FILENAME failed to upload" "$DESCRIPTION")
+  echo "$DESCRIPTION"
+  send_webhook "$BODY"
+  exit 1
+fi

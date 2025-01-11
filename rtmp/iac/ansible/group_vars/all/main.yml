@@ -4,6 +4,10 @@ generate_stream_keys: true
 
 gluster_path: /mnt/glustershare
 
+recordings_bucket: "rtmp-recordings-bucket"
+
+webhook_url: "{{ secrets.webhook_url }}"
+
 ssl_cert_path: "{{ gluster_path }}/shared-resources/cert"
 ssl_key_path: "{{ gluster_path }}/shared-resources/key"
 
@@ -16,7 +20,7 @@ app_domain_name: gnomes.moe
 rtmp_enabled: true
 
 rtmp_auth_image: "localhost:5000/rtmp-auth"
-nginx_rtmp_image: "tiangolo/nginx-rtmp:latest-2025-01-06"
+nginx_rtmp_image: "localhost:5000/nginx-rtmp"
 nginx_image: "nginx"
 
 rtmp_redis_data_path: "{{ gluster_path }}/redis"
@@ -30,6 +34,7 @@ rtmp_recording_config_path: "{{ gluster_path }}/shared-resources/rtmp-recording.
 rtmp_playback_config_path: "{{ gluster_path }}/shared-resources/rtmp-playback.conf"
 rtmp_playback_proxy_config_path: "{{ gluster_path }}/shared-resources/nginx-playback.conf"
 rtmp_ingest_proxy_config_path: "{{ gluster_path }}/shared-resources/nginx-ingest.conf"
+rtmp_upload_recording_script: "{{ gluster_path }}/shared-resources/upload-to-s3.sh"
 
 rtmp_ingest_replicas: 1
 rtmp_recording_replicas: 2
@@ -90,7 +95,4 @@ grafana_app_name: gf
 # BEGIN: API Keys
 porkbun_api_key: "{{ secrets.porkbun_api_key }}"
 porkbun_secret_key: "{{ secrets.porkbun_secret_key }}"
-
-aws_access_key_id: "{{ secrets.aws_access_key_id }}"
-aws_secret_access_key: "{{ secrets.aws_secret_access_key }}"
 # END: API Keys

@@ -35,5 +35,6 @@
   docker_stack:
     state: present
     name: traefik
+    detach: false
     compose:
       - /root/stacks/traefik-stack.yml

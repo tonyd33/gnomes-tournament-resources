@@ -14,6 +14,13 @@ rtmp {
             record all;
             record_path /var/rtmp/recordings;
             record_unique on;
+
+            on_publish http://rtmp-auth:6570/publish;
+            on_play http://rtmp-auth:6570/play;
+            on_play_done http://rtmp-auth:6570/play-done;
+            on_record_done http://rtmp-auth:6570/record-done;
+
+            exec_record_done /etc/nginx/upload-to-s3.sh $path;
         }
     }
 }

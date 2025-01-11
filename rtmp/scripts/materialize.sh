@@ -51,6 +51,8 @@ Required options:
   --domain [domain]                      Domain for DNS.
                                          Default: $DEFAULT_DOMAIN
   --approve,-y                           Auto approve.
+  --dangerously-auto-approve             Dangerously auto approve terraform
+                                         prompts.
 EOF
 }
 
@@ -88,6 +90,10 @@ while [ $# -gt 0 ]; do
       APPROVE=true
       shift
       ;;
+    --dangerously-auto-approve)
+      DANGEROUSLY_AUTO_APPROVE=true
+      shift
+      ;;
     *)
       print_help
       exit 1
@@ -120,11 +126,17 @@ EOF
 fi
 
 echo "Applying infrastructure..."
-terraform -chdir="$TERRAFORM_DIR" apply \
-  -var="master_instance_type=$MASTER_INSTANCE_TYPE" \
-  -var="worker_instance_type=$WORKER_INSTANCE_TYPE" \
-  -var="worker_count=$WORKERS" \
+TERRAFORM_CMD=(
+terraform -chdir="$TERRAFORM_DIR" apply
+  -var="master_instance_type=$MASTER_INSTANCE_TYPE"
+  -var="worker_instance_type=$WORKER_INSTANCE_TYPE"
+  -var="worker_count=$WORKERS"
   -var="storage_size=$STORAGE_SIZE"
+)
+if [ "$DANGEROUSLY_AUTO_APPROVE" = true ]; then
+  TERRAFORM_CMD+=(-auto-approve)
+fi
+"${TERRAFORM_CMD[@]}"
 terraform -chdir="$TERRAFORM_DIR" show -json > "$TF_OUTPUTS"
 
 # screw stupidly complex jq commands. I'm just gonna write an inline node script
@@ -209,6 +221,7 @@ echo
 echo "Deploying..."
 cd "$ANSIBLE_DIR"
 source ansible/bin/activate
+ansible-galaxy collection install -r requirements.yml
 pip install -r requirements.txt
 ANSIBLE_OVERRIDES=$(
 cat <<EOF
@@ -216,11 +229,7 @@ cat <<EOF
   generate_stream_keys: true,
   override_stream_keys: false,
   debug_certs: $DEBUG_CERTS,
-  app_domain_name: $DOMAIN,
-  porkbun_api_key: $(cat $PORKBUN_SECRET_KEY),
-  porkbun_secret_key: $(cat $PORKBUN_API_KEY),
-  aws_access_key_id: $(cat "$TF_OUTPUTS" | jq '.values.outputs.aws_secret_access_key.value.id'),
-  aws_secret_access_key: $(cat "$TF_OUTPUTS" | jq '.values.outputs.aws_secret_access_key.value.secret')
+  app_domain_name: "$DOMAIN",
 }
 EOF
 )

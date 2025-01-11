@@ -116,6 +116,7 @@ services:
     volumes:
       - "{{ recordings_path }}:/var/rtmp/recordings"
       - "{{ rtmp_recording_config_path }}:/etc/nginx/nginx.conf"
+      - "{{ rtmp_upload_recording_script }}:/etc/nginx/upload-to-s3.sh"
 
   {{ rtmp_playback_container }}:
     image: {{ nginx_rtmp_image }}

@@ -21,8 +21,7 @@
     src: "../files/{{ item }}"
     dest: "/root/docker-build/{{ item }}"
   loop:
-    # - nginx/
-    # - nginx-rtmp/
+    - nginx-rtmp/
     - auth-server/
 
 - name: Build images
@@ -33,6 +32,8 @@
       - push: true
         type: image
   loop:
+    - name: "{{ nginx_rtmp_image }}"
+      path: /root/docker-build/nginx-rtmp
     - name: "{{ rtmp_auth_image }}"
       path: /root/docker-build/auth-server
 

@@ -23,12 +23,16 @@
     - src: rtmp/rtmp-recording.conf.j2
       dest: "{{ rtmp_recording_config_path }}"
 
+    - src: rtmp/upload-to-s3.sh.j2
+      dest: "{{ rtmp_upload_recording_script }}"
+
 
 - name: Deploy stack from a compose file (on first swarm node)
   when: inventory_hostname == groups.master[0]
   docker_stack:
     state: present
     name: rtmp
+    detach: false
     compose:
       - /root/stacks/rtmp-stack.yml
 

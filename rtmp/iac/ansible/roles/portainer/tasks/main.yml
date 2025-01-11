@@ -29,6 +29,7 @@
   when: inventory_hostname == groups.master[0]
   docker_stack:
     state: present
+    detach: false
     name: portainer
     compose:
       - /root/stacks/portainer-agent-stack.yml
