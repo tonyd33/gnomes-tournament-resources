@@ -5,9 +5,12 @@ set -eo pipefail
 DIR="$(dirname "$0")"
 SCRIPT_NAME=${0##*/}
 
-TERRAFORM_DIR="$(realpath $DIR/../iac/tf)"
-ANSIBLE_DIR="$(realpath $DIR/../iac/ansible)"
-ANSIBLE_INVENTORY="$(realpath $ANSIBLE_DIR/inventory.ini)"
+TERRAFORM_DIR="$(realpath "$DIR/../iac/tf")"
+ANSIBLE_DIR="$(realpath "$DIR/../iac/ansible")"
+ANSIBLE_INVENTORY="$(realpath "$ANSIBLE_DIR/inventory.ini")"
+
+PORKBUN_CLI="$(realpath "$DIR/porkbun-cli/porkbun-cli.sh")"
+
 SUBDOMAINS=(rtmp prt ri trfk prom gf)
 
 DEFAULT_WORKERS=2
@@ -162,39 +165,16 @@ echo
 
 MASTER_IP="$(grep -A 1 '\[master\]' "$ANSIBLE_INVENTORY" | tail -n1)"
 
-# Assume these domains already have records
 echo "Setting DNS records..."
-PORKBUN_DATA=$(
-cat <<EOF
-{
-  "secretapikey": "$(cat $PORKBUN_SECRET_KEY)",
-  "apikey": "$(cat $PORKBUN_API_KEY)",
-  "content": "$MASTER_IP",
-  "ttl": "300"
-}
-EOF
-)
 for subdomain in ${SUBDOMAINS[@]}; do
   echo "Setting $subdomain"
-  [ "$(dig +short "${subdomain}.$DOMAIN")" = "$MASTER_IP" ] ||\
-    curl -X POST \
-    -L "https://api.porkbun.com/api/json/v3/dns/editByNameType/gnomes.moe/A/$subdomain" \
-    -H 'Content-Type: text/plain' \
-    -d "$PORKBUN_DATA"
-  echo
-
-
+  "$PORKBUN_CLI" \
+    --api-key "$(cat "$PORKBUN_API_KEY")" \
+    --secret-api-key "$(cat "$PORKBUN_SECRET_KEY")" -- \
+    upsert-by-name-type "$DOMAIN" "$subdomain" \
+    --type A --content "$MASTER_IP" --multiple-behavior unique >/dev/null 2>&1
+  sleep 1s
 done
-for subdomain in ${SUBDOMAINS[@]}; do
-  echo -n "Waiting on DNS changes to propagate for $subdomain"
-  for i in $(seq 1 300); do
-    [ "$(dig +short "$subdomain.$DOMAIN")" = "$MASTER_IP" ] && break
-    sleep 1s
-    echo -n .
-  done
-  echo
-done
-echo
 
 # get ips for keyscan from the inventory lmfao, screw writing another node
 # script or query
@@ -206,12 +186,6 @@ echo "$KEYSCAN_IPS" | while read line; do
   echo "Scanning $line"
   ssh-keygen -R $line >/dev/null 2>&1
   ssh-keyscan -H $line >> ~/.ssh/known_hosts
-done
-
-for subdomain in ${SUBDOMAINS[@]}; do
-  echo "Scanning $subdomain"
-  ssh-keygen -R "${subdomain}.$DOMAIN" >/dev/null 2>&1
-  ssh-keyscan -H "${subdomain}.$DOMAIN" >> ~/.ssh/known_hosts
 done
 
 set -e
@@ -238,6 +212,25 @@ ansible-playbook \
   -e "$ANSIBLE_OVERRIDES"
 cd -
 echo
+
+# We wait on the DNS changes here because
+# 1. We don't actually rely on DNS beforehand
+# 2. If we try checking the DNS too early after we update records
+for subdomain in ${SUBDOMAINS[@]}; do
+  echo -n "Waiting on DNS changes to propagate for $subdomain"
+  for i in $(seq 1 300); do
+    [ "$(dig +short "$subdomain.$DOMAIN")" = "$MASTER_IP" ] && break
+    sleep 1s
+    echo -n .
+  done
+  echo
+done
+
+for subdomain in ${SUBDOMAINS[@]}; do
+  echo "Scanning $subdomain"
+  ssh-keygen -R "${subdomain}.$DOMAIN" >/dev/null 2>&1
+  ssh-keyscan -H "${subdomain}.$DOMAIN" >> ~/.ssh/known_hosts
+done
 
 # Cleanup
 rm "$TF_OUTPUTS"

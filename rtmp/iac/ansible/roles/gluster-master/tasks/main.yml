@@ -48,6 +48,5 @@
     state: directory
     mode: '755'
   loop:
-    - recordings
     - shared-resources
 

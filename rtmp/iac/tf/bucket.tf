@@ -3,9 +3,9 @@ resource "aws_s3_bucket" "recordings" {
   acl = "private"
 
   # don't let me idiot pls
-  lifecycle {
-    prevent_destroy = true
-  }
+  # lifecycle {
+    # prevent_destroy = true
+  # }
 }
 
 resource "aws_iam_role" "rtmp_role" {

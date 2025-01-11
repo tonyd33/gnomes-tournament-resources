@@ -1,0 +1,3 @@
+[submodule "rtmp/rtmp/scripts/porkbun-cli"]
+	path = rtmp/rtmp/scripts/porkbun-cli
+	url = git@github.com:tonyd33/porkbun-cli.git

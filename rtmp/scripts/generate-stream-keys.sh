@@ -8,7 +8,7 @@ FILE=stream-keys
 NUM_KEYS=100
 OVERWRITE=0
 
-function print_help {
+print_help() {
   cat <<EOF
 Usage: ${SCRIPT_NAME} [options...]
 Generates stream keys.

@@ -6,7 +6,7 @@ DIR="$(dirname "$0")"
 SCRIPT_NAME=${0##*/}
 
 TERRAFORM_DIR="$(realpath $DIR/../iac/tf)"
-function print_help {
+print_help() {
   cat <<EOF
 Usage: ${SCRIPT_NAME} [options...]
 Dematerialize.
