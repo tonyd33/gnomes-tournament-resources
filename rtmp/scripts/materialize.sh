@@ -172,7 +172,8 @@ for subdomain in ${SUBDOMAINS[@]}; do
     --api-key "$(cat "$PORKBUN_API_KEY")" \
     --secret-api-key "$(cat "$PORKBUN_SECRET_KEY")" -- \
     upsert-by-name-type "$DOMAIN" "$subdomain" \
-    --type A --content "$MASTER_IP" --multiple-behavior unique >/dev/null 2>&1
+    --type A --content "$MASTER_IP" --multiple-behavior unique
+  echo
   sleep 1s
 done
 
@@ -195,8 +196,8 @@ echo
 echo "Deploying..."
 cd "$ANSIBLE_DIR"
 source ansible/bin/activate
-ansible-galaxy collection install -r requirements.yml
 pip install -r requirements.txt
+ansible-galaxy collection install -r requirements.yml
 ANSIBLE_OVERRIDES=$(
 cat <<EOF
 {

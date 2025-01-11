@@ -32,6 +32,7 @@ services:
         - "traefik.http.routers.redisinsight.rule=Host(`{{redisinsight_app_name}}.{{app_domain_name}}`)"
         - "traefik.http.routers.redisinsight.middlewares=auth"
         - "traefik.http.middlewares.auth.basicauth.users={{traefikpassword.stdout}}"
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
         - "traefik.http.services.redisinsight.loadbalancer.server.port=5540"
         - "traefik.docker.network={{traefik_network}}"
     container_name: redisinsight
