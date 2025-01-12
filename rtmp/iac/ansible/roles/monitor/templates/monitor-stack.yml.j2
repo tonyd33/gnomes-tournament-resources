@@ -22,6 +22,10 @@ services:
     networks:
       - {{ monitor_network }}
       - {{ traefik_network }}
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
     deploy:
       labels:
         - "traefik.enable=true"
@@ -50,6 +54,10 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD={{ grafana_admin_password }}
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
     deploy:
       labels:
         - "traefik.enable=true"
@@ -71,6 +79,10 @@ services:
       mode: global
       labels:
         - prometheus-job=node-exporter
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
     ports:
       - "9100:9100"
 
@@ -79,14 +91,19 @@ services:
     networks:
       - {{ monitor_network }}
     volumes:
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /:/rootfs:ro
-      - /var/lib/docker:/var/lib/docker:ro
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/:/rootfs:ro"
+      - "/var/run:/var/run:ro"
+      - "/sys:/sys:ro"
+      - "/var/lib/docker:/var/lib/docker:ro"
     ports:
-      - "8081:8081"
+      - "8080:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
     deploy:
+      mode: global
       labels:
         - prometheus-job=cadvisor
-      mode: global
 

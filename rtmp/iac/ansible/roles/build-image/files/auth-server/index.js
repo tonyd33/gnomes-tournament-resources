@@ -1,4 +1,5 @@
 const { authorizeRedirect } = require('./auth')
+const { logWebhook } = require('./webhook')
 const express = require('express')
 const bodyParser = require('body-parser')
 
@@ -9,10 +10,28 @@ app.use(bodyParser.urlencoded({extended: true}))
 const PORT = process.env.PORT ?? 3000
 const TRAMPOLINE_PREFIX = process.env.TRAMPOLINE_PREFIX ?? 'rtmp://127.0.0.1:1935/trampoline'
 
-const logCallback = () => (req, res) => {
-  console.log(`[${req.body.call}]: name: ${req.body.name}, addr: ${req.body.addr}, time: ${new Date()}`)
-  res.status(200).send("ok")
+const logCallback = () => (req, res, next) => {
+  const event = req.body.call ?? 'unknown event'
+  const streamName = req.body.name ?? 'unknown stream'
+  const addr = req.body.addr ?? 'unknown address'
+  const time = new Date().toString()
+
+  console.log(`[${event}]: name: ${streamName}, addr: ${addr}, time: ${time}`)
+  logWebhook({
+    title: `${event} on ${streamName}`,
+    fields: [
+      {name: 'event', value: event},
+      {name: 'stream name', value: streamName},
+      {name: 'address', value: addr},
+      {name: 'time', value: time}
+    ]
+  })
+  next()
 }
+
+const ok200 = (req, res) => res.status(200).send('ok')
+
+app.use(logCallback())
 
 app.post('/publish/auth', async (req, res) => {
   const streamKey = req.body.name
@@ -26,7 +45,7 @@ app.post('/publish/auth', async (req, res) => {
   }
 })
 
-app.post('/publish/auth-redirect', async (req, res) => {
+app.post('/publish/auth-redirect', logCallback(), async (req, res) => {
   const streamKey = req.body.name
   const redirect = await authorizeRedirect(streamKey)
   if (redirect) {
@@ -41,13 +60,13 @@ app.post('/publish/auth-redirect', async (req, res) => {
   }
 })
 
-app.post('/connect', logCallback())
-app.post('/publish', logCallback())
-app.post('/done', logCallback())
-app.post('/play', logCallback())
-app.post('/play-done', logCallback())
-app.post('/publish-done', logCallback())
-app.post('/record-done', logCallback())
+app.post('/connect', ok200)
+app.post('/publish', ok200)
+app.post('/done', ok200)
+app.post('/play', ok200)
+app.post('/play-done', ok200)
+app.post('/publish-done', ok200)
+app.post('/record-done', ok200)
 
 app.listen(PORT, () => {
   console.log(`RTMP auth server listening on http://localhost:${PORT}`)

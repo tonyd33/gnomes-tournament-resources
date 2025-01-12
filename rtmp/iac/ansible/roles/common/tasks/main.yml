@@ -1,0 +1,51 @@
+- name: Get hostname
+  shell:
+    cmd: 'hostname'
+  changed_when: false
+  register: node_hostname
+- set_fact:
+    canonical_hostname: "{{ node_hostname.stdout }}"
+    advertise_addr: "{{ ansible_default_ipv4.address }}"
+- name: Install system dependencies
+  apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-docker
+      - docker.io
+      - docker-buildx
+      - docker-compose-v2
+      - jq
+      - glusterfs-server
+      - glusterfs-client
+      - python3-certbot
+      - python3-jsondiff
+      - apache2-utils
+    update_cache: yes
+    state: present
+- name: Install system dependencies (snap)
+  snap:
+    name:
+      - aws-cli
+    classic: true
+- name: Create docker directory
+  file:
+    path: /etc/docker
+    state: directory
+    mode: 755
+# For prometheus
+- name: Update Docker daemon settings
+  copy:
+    content: |
+      {
+        "metrics-addr": "0.0.0.0:9323",
+        "experimental": true
+      }
+    dest: /etc/docker/daemon.json
+  register: docker_settings
+- name: Restart docker
+  service:
+    name: docker
+    state: restarted
+  when: docker_settings.changed
+

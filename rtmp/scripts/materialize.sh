@@ -12,6 +12,8 @@ ANSIBLE_INVENTORY="$(realpath "$ANSIBLE_DIR/inventory.ini")"
 PORKBUN_CLI="$(realpath "$DIR/porkbun-cli/porkbun-cli.sh")"
 
 SUBDOMAINS=(rtmp prt ri trfk prom gf)
+# Can't go any lower with porkbun
+DNS_TTL=600
 
 DEFAULT_WORKERS=2
 DEFAULT_STORAGE_SIZE=25
@@ -168,6 +170,10 @@ MASTER_IP="$(grep -A 1 '\[master\]' "$ANSIBLE_INVENTORY" | tail -n1)"
 echo "Setting DNS records..."
 for subdomain in ${SUBDOMAINS[@]}; do
   echo "Setting $subdomain"
+  # Do not resolve the domain before trying to run this command! If we really
+  # do need to update, the fact that the cache will be certainly invalid after
+  # we update means we have to wait longer later. By not checking first, we
+  # have a better chance of catching the updated cache
   "$PORKBUN_CLI" \
     --api-key "$(cat "$PORKBUN_API_KEY")" \
     --secret-api-key "$(cat "$PORKBUN_SECRET_KEY")" -- \
@@ -219,7 +225,7 @@ echo
 # 2. If we try checking the DNS too early after we update records
 for subdomain in ${SUBDOMAINS[@]}; do
   echo -n "Waiting on DNS changes to propagate for $subdomain"
-  for i in $(seq 1 300); do
+  for i in $(seq 1 "$DNS_TTL"); do
     [ "$(dig +short "$subdomain.$DOMAIN")" = "$MASTER_IP" ] && break
     sleep 1s
     echo -n .

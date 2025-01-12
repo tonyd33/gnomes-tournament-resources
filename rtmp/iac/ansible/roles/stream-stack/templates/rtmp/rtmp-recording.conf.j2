@@ -10,6 +10,10 @@ rtmp {
         application live {
             live on;
 
+            # TODO: Test this
+            # TODO: Change this to longer after testing
+            record_interval 1m;
+
             # recordings
             record all;
             record_path /var/rtmp/recordings;

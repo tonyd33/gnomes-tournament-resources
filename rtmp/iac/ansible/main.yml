@@ -1,71 +1,22 @@
+---
 - hosts: all
   name: Common setup
   tags: [common]
-  tasks:
-    - name: Get hostname
-      shell:
-        cmd: 'hostname'
-      changed_when: false
-      register: node_hostname
-    - set_fact:
-        canonical_hostname: "{{ node_hostname.stdout }}"
-        advertise_addr: "{{ ansible_default_ipv4.address }}"
-    - name: Install system dependencies
-      apt:
-        name:
-          - python3
-          - python3-pip
-          - python3-docker
-          - docker.io
-          - docker-buildx
-          - docker-compose-v2
-          - jq
-          - glusterfs-server
-          - glusterfs-client
-          - python3-certbot
-          - python3-jsondiff
-          - apache2-utils
-        update_cache: yes
-        state: present
-    - name: Install system dependencies (snap)
-      snap:
-        name:
-          - aws-cli
-        classic: true
-    - name: Create docker directory
-      file:
-        path: /etc/docker
-        state: directory
-        mode: 755
-    - name: Update Docker daemon settings
-      copy:
-        content: |
-          {
-            "metrics-addr": "0.0.0.0:9323",
-            "experimental": true
-          }
-        dest: /etc/docker/daemon.json
-      register: docker_settings
-    - name: Restart docker
-      service:
-        name: docker
-        state: restarted
-      when: docker_settings.changed
+  roles: [common]
 
 - hosts: master
+  tags: [master-setup]
   roles:
     - swarm-master
     - gluster-master
 
 - hosts: worker
+  tags: [worker-setup]
   tasks:
     - set_fact:
         master_facts: "{{ hostvars[groups.master[0]] }}"
-
-- hosts: worker
-  roles:
-    - swarm-worker
-    - gluster-worker
+    - import_role: name=swarm-worker
+    - import_role: name=gluster-worker
 
 - hosts: master
   tags: [prepare]
@@ -80,3 +31,41 @@
     - portainer
     - monitor
     - stream-stack
+
+- hosts: load-generator
+  tags: [generate-load]
+  tasks:
+    - name: Copy video
+      copy:
+        src: ../../../videos/squidgameversion.mp4
+        dest: /root/video.mp4
+    - name: Install load generating dependencies
+      apt:
+        name:
+          - yt-dlp
+          - ffmpeg
+        update_cache: yes
+        state: present
+    - name: Generate load
+      when: generate_load
+      shell: |
+        killall ffmpeg || echo "not running"
+        bash -c '
+        START_INDEX=$(expr {{ loop_index }} * 2)
+        PIDS=()
+
+        for i in $(seq 1 1); do
+          INDEX=$(expr $START_INDEX + $i)
+          ffmpeg -stream_loop -1 -re -i /root/video.mp4 -c:v copy -c:a aac -ar 44100 -ac 1 -f flv rtmp://rtmp.gnomes.moe/live/$INDEX &
+          PIDS[${i}]=$!
+        done
+
+        for pid in ${PIDS[@]}; do
+          wait $pid
+        done
+        '
+      loop: "{{ groups['load-generator'] }}"
+      loop_control:
+        index_var: loop_index
+      failed_when: false
+

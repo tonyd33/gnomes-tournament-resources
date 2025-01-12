@@ -7,9 +7,9 @@ rtmp {
         listen {{ rtmp_port }};
         chunk_size {{ rtmp_chunk_size }};
 
+        deny play all;
+
         application live {
-            # these should even attempt playback. turn it off ot avoid any
-            # potential confusion.
             live on;
 
             on_publish http://rtmp-auth:6570/publish/auth-redirect;

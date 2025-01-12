@@ -8,6 +8,11 @@ variable "worker_count" {
   default     = 2
 }
 
+variable "load_generator_count" {
+  description = "Number of load generators"
+  default = 0
+}
+
 variable "worker_instance_type" {
   description = "Instance type on each worker"
   default     = "t3.medium"

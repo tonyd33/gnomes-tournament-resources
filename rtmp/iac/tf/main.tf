@@ -139,3 +139,33 @@ resource "aws_instance" "swarm_workers" {
   depends_on = [aws_instance.swarm_master]
 }
 
+resource "aws_instance" "load_generators" {
+  count = var.load_generator_count
+  # ubuntu 24.04
+  ami           = "ami-0049815cd593da697"
+  instance_type = "t3.micro"
+  key_name      = aws_key_pair.swarm_key.key_name
+  vpc_security_group_ids = [
+    aws_security_group.public.id,
+    aws_security_group.swarm.id,
+    aws_security_group.gluster.id,
+    aws_security_group.egress.id,
+  ]
+  tags = {
+    Name = "Load-Generator-${count.index + 1}"
+  }
+
+  subnet_id = aws_subnet.public_subnet.id
+
+  root_block_device {
+    volume_size = 32
+  }
+  user_data = <<-EOF
+    #!/bin/bash
+    hostnamectl set-hostname load-tester-${count.index + 1}
+    echo "127.0.0.1 load-generator-${count.index + 1}" >> /etc/hosts
+
+    echo "Initialization complete" >> /var/log/cloud-init.log
+  EOF
+}
+

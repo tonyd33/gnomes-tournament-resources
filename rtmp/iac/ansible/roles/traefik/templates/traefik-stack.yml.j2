@@ -13,12 +13,19 @@ services:
       - "--providers.docker.swarmMode=true"
       - "--entrypoints.web.address=:{{traefik_listen_port}}"
       - "--entrypoints.websecure.address=:{{traefik_secure_listen_port}}"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--providers.docker.exposedByDefault=false"
       - "--providers.file.filename=/config/traefik.yml"
     ports:
       - "{{traefik_listen_port}}:{{traefik_listen_port}}"
       - "443:443"
       - "{{traefik_admin_port}}:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
     networks:
       - {{traefik_network}}
     deploy:

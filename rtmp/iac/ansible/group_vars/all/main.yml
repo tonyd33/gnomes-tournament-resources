@@ -73,7 +73,7 @@ traefik_admin_user: admin
 traefik_admin_password: "{{ secrets.traefik_admin_password }}"
 traefik_listen_port: 80
 traefik_secure_listen_port: 443
-traefik_admin_port: 8080
+traefik_admin_port: 8082
 # END: Traefik
 
 # BEGIN: redisinsight

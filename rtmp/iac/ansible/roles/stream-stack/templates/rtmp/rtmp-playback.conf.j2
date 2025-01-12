@@ -10,6 +10,8 @@ rtmp {
         application live {
             live on;
 
+            # TODO: Deny publish from outside the docker subnet(?)
+
             on_publish http://rtmp-auth:6570/publish;
             on_play http://rtmp-auth:6570/play;
             on_play_done http://rtmp-auth:6570/play-done;

@@ -7,7 +7,7 @@ RUN apk add --no-cache tini
 COPY package.json package-lock.json ./
 RUN npm i
 
-COPY index.js util.js auth.js ./
+COPY index.js util.js auth.js webhook.js ./
 
 ENV PORT=6570
 EXPOSE 6570/tcp

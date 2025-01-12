@@ -39,3 +39,6 @@ scrape_configs:
       - source_labels: [__meta_dockerswarm_service_label_prometheus_job]
         target_label: job
 
+      - source_labels: [__meta_dockerswarm_node_hostname]
+        target_label: instance
+
