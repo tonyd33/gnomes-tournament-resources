@@ -8,7 +8,7 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({extended: true}))
 
 const PORT = process.env.PORT ?? 3000
-const TRAMPOLINE_PREFIX = process.env.TRAMPOLINE_PREFIX ?? 'rtmp://127.0.0.1:1935/trampoline'
+const TRAMPOLINE_PREFIX = process.env.TRAMPOLINE_PREFIX ?? 'rtmp://127.0.0.1:1940/trampoline'
 
 const logCallback = () => (req, res, next) => {
   const event = req.body.call ?? 'unknown event'

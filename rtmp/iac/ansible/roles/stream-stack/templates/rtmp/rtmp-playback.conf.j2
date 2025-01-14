@@ -10,13 +10,39 @@ rtmp {
         application live {
             live on;
 
-            # TODO: Deny publish from outside the docker subnet(?)
-
-            on_publish http://rtmp-auth:6570/publish;
             on_play http://rtmp-auth:6570/play;
             on_play_done http://rtmp-auth:6570/play-done;
             on_record_done http://rtmp-auth:6570/record-done;
+
+            pull localhost:{{ rtmp_relay_port }}/trampoline;
+            deny publish all;
         }
+
+    }
+
+    server {
+        listen {{ rtmp_relay_port }};
+        chunk_size {{ rtmp_chunk_size }};
+
+        # Alright, this is also pretty stupid, but hear me out.
+        # The ingestion server sends to the trampoline relay below and we pull
+        # it from the trampoline relay so that the playback server can deny
+        # publishing all streams. It otherwise can only deny publishing on an
+        # IP or IP range, which we can't rely on because of how the network
+        # is set up, especially with a proxy server in front of the playback
+        # server.
+        #
+        # We can't have this trampoline listen on the same port as what'll
+        # be exposed because then people could publish to the trampoline
+        # application!
+        #
+        # This could so easily be solved by implementing some authentication
+        # by forwarding am authentication query parameter in the relays but
+        # whatever, this is easier XDDD
+        application trampoline {
+            live on;
+        }
+
     }
 }
 

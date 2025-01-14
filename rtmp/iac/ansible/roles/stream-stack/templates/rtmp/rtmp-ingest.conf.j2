@@ -13,7 +13,14 @@ rtmp {
             live on;
 
             on_publish http://rtmp-auth:6570/publish/auth-redirect;
+            on_publish_done http://rtmp-auth:6570/publish-done;
         }
+
+    }
+
+    server {
+        listen {{ rtmp_relay_port }};
+        chunk_size {{ rtmp_chunk_size }};
 
         # Ok so the problem is that, while we can create dynamic relays from
         # the HTTP callbacks by setting a location, the relay URL to push to
@@ -26,11 +33,11 @@ rtmp {
         # then we do a regular static push relay here.
         application trampoline {
             live on;
-            on_publish http://rtmp-auth:6570/publish;
 
             push rtmp://{{ rtmp_recording_container }}:{{ rtmp_port }}/live;
-            push rtmp://{{ rtmp_playback_container }}:{{ rtmp_port }}/live;
+            push rtmp://{{ rtmp_playback_container }}:{{ rtmp_relay_port }}/trampoline;
         }
+
     }
 
 }

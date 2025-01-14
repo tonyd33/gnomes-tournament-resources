@@ -71,6 +71,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - "WEBHOOK_URL={{ webhook_url }}"
+      - "TRAMPOLINE_PREFIX=rtmp://127.0.0.1:{{ rtmp_relay_port }}/trampoline"
     networks:
       - {{ rtmp_network }}
 
@@ -102,7 +103,6 @@ services:
   {{ rtmp_recording_container }}:
     image: {{ nginx_rtmp_image }}
     depends_on:
-      - rtmp-auth
       - {{ rtmp_ingest_container }}
     deploy:
       replicas: {{ rtmp_recording_replicas }}
@@ -133,7 +133,7 @@ services:
       - rtmp-auth
       - {{ rtmp_ingest_container }}
     deploy:
-      replicas: {{ rtmp_playback_replicas }}
+      replicas: 1
       resources:
         limits:
           cpus: '1'

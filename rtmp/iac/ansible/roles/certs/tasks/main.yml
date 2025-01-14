@@ -6,6 +6,8 @@
     mode: '755'
 
 
+- debug: var=debug_certs
+
 - name: Get certificate
   docker_container:
     name: certbot_porkbun

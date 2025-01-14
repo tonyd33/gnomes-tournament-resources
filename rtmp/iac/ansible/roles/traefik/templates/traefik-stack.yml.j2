@@ -17,7 +17,7 @@ services:
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
       - "--providers.docker.exposedByDefault=false"
-      - "--providers.file.filename=/config/traefik.yml"
+      - "--providers.file.directory=/config"
     ports:
       - "{{traefik_listen_port}}:{{traefik_listen_port}}"
       - "443:443"
@@ -42,6 +42,6 @@ services:
         constraints: [node.role == manager]
     volumes:
       - "{{ ssl_cert_path }}:/certs/cert.pem"
-      - "{{ ssl_key_path }}:/certs/key.pem"
+      - "{{ ssl_key_path }}:/certs/privkey.pem"
       - "/root/stacks/traefik/traefik.yml:/config/traefik.yml"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"

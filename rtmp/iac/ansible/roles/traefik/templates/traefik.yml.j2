@@ -1,16 +1,9 @@
-entryPoints:
-  web:
-    address: ":{{ traefik_listen_port }}"
-  websecure:
-    address: ":{{ traefik_secure_listen_port }}"
-
-providers:
-  docker:
-    swarmMode: true
-    network: {{ traefik_network }}
-    exposedByDefault: false
-
 tls:
   certificates:
     - certFile: "/certs/cert.pem"
       keyFile: "/certs/privkey.pem"
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/cert.pem
+        keyFIle: /certs/privkey.pem

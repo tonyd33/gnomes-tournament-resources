@@ -38,11 +38,13 @@ rtmp_upload_recording_script: "{{ gluster_path }}/shared-resources/upload-to-s3.
 
 rtmp_ingest_replicas: 1
 rtmp_recording_replicas: 2
-rtmp_playback_replicas: 1
+# Cannot change this
+# rtmp_playback_replicas: 1
 
 # internal
 rtmp_port: 1935
 rtmps_port: 1936
+rtmp_relay_port: 1940
 rtmp_chunk_size: 4096
 
 rtmp_network: rtmp
