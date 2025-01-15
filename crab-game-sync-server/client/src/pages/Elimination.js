@@ -6,7 +6,7 @@ import _ from 'lodash';
 
 
 export default function EliminationPage() {
-  const {gameState, playersInfo} = useGameState();
+  const {gameState, playersInfo, manualMode} = useGameState();
 
 
   const getPlayerState = useCallback(playerId => {
@@ -24,7 +24,7 @@ export default function EliminationPage() {
   }, [gameState?.Players])
 
   const players = useMemo(() => {
-    const unpaddedPlayers = playersInfo;
+    const unpaddedPlayers = playersInfo ?? [];
     if (unpaddedPlayers.length < 40) {
       return [
         ...unpaddedPlayers.map(
@@ -55,6 +55,7 @@ export default function EliminationPage() {
         {players.map((player) => (
           <PlayerCard
             key={player.playerId}
+            manualMode={manualMode}
             {...player}
           />
         ))

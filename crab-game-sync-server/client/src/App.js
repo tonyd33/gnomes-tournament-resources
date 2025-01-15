@@ -15,6 +15,7 @@ function App() {
   const [gameState, setGameState] = useState();
   const [msgs, setMsgs] = useState([]);
 
+  const [manualMode, setManualMode] = useState(false);
   const [playersInfo, setPlayersInfo] = useState([]);
 
   useEffect(() => {
@@ -30,7 +31,9 @@ function App() {
     const onStateUpdate = (gameState) => {
       console.log('Received game state');
       console.log(gameState);
-      setGameState(gameState);
+      if (!manualMode) {
+        setGameState(gameState);
+      }
     }
     const onChatMsg = (msg) => {
       console.log('Received chat message');
@@ -51,7 +54,7 @@ function App() {
       socket.off('state_update', onStateUpdate);
       socket.off('chat_msg', onChatMsg);
     }
-  }, []);
+  }, [manualMode]);
 
   // retrieve the map from local storage on mount
   useEffect(() => {
@@ -67,10 +70,28 @@ function App() {
     }
   }, []);
 
+  //retrieve manual mode
+  useEffect(() => {
+    try {
+      const manualMode = JSON.parse(localStorage.getItem('manualMode'));
+      console.log('Retrieved manualMode from localStorage');
+      console.log(manualMode);
+      setManualMode(manualMode);
+    } catch (err) {
+      console.log('Initializing manualMode to localStorage');
+      localStorage.setItem('manualMode', JSON.stringify(false));
+      setManualMode(false);
+    }
+  }, [])
+
   // update localStorage on change
   useEffect(() => {
     localStorage.setItem('playersInfo', JSON.stringify(playersInfo));
   }, [playersInfo])
+
+  useEffect(() => {
+    localStorage.setItem('manualMode', JSON.stringify(manualMode));
+  }, [manualMode]);
 
   const handlePollState = useCallback(() => {
     socket.emit('poll_state');
@@ -90,6 +111,8 @@ function App() {
       msgs,
       playersInfo,
       setPlayersInfo,
+      manualMode,
+      setManualMode
     }}>
       <BrowserRouter>
         <Routes path="/">

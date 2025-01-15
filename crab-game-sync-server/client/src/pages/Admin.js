@@ -10,6 +10,8 @@ export default function AdminPage() {
     remoteCommand,
     playersInfo,
     setPlayersInfo,
+    manualMode,
+    setManualMode
   } = useGameState();
 
   const [command, setCommand] = useState('');
@@ -50,6 +52,11 @@ export default function AdminPage() {
       prevInfo => prevInfo.entryId !== entryId
     ))
   }, [setPlayersInfo]);
+
+  const handleManualModeChange = useCallback(e => {
+    console.log('setting manual mode to', e.target.checked);
+    setManualMode(e.target.checked)
+  }, [setManualMode])
 
   const bottomRef = useRef(null);
 
@@ -108,6 +115,21 @@ export default function AdminPage() {
         <code className="whitespace-pre max-h-64 overflow-y-scroll">
           {JSON.stringify(Object.values(gameState?.Players ?? {}), null, 2)}
         </code>
+      </div >
+      <div className="flex flex-col space-y-4 min-w-[500px]">
+        <h1 className="text-3xl font-bold text-center">Miscellaneous</h1>
+        <div className="flex flex-row space-x-4">
+          <label htmlFor="manual-mode-input">
+            Manual mode
+          </label>
+          <input
+            id="manual-mode-input"
+            type="checkbox"
+            checked={manualMode}
+            value={manualMode}
+            onChange={handleManualModeChange}
+          />
+        </div>
       </div>
     </div>
   );

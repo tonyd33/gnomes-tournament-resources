@@ -1,3 +1,4 @@
+const fs = require('fs');
 const express = require("express");
 const {createServer} = require("http");
 const {join} = require('path');
@@ -5,6 +6,7 @@ const {Server} = require("socket.io");
 const cors = require("cors");
 
 const PORT = process.env.PORT ?? 3000;
+const LOG_FILE = process.env.LOG_FILE ?? '/var/log/crab-game-sync-server.log';
 
 const app = express();
 const httpServer = createServer(app);
@@ -14,7 +16,7 @@ app.use(cors());
 app.use(express.static(join(__dirname, "..", "client", "build")));
 app.get("*", (req, res) => {
   res.sendFile(join(__dirname, "..", "client", "build", "index.html"));
-})
+});
 
 
 const io = new Server(httpServer, {
@@ -41,7 +43,10 @@ io.on("connection", (socket) => {
     try {
       const state = JSON.parse(stateStr)
       console.log(state);
+
       io.emit("state_update", state);
+      const logStr = `${JSON.stringify({state, timestamp: Date.now()})}\n`
+      fs.promises.appendFile(LOG_FILE, logStr);
     } catch (err) {
       console.error("While trying to parse state, caught", err)
     }
