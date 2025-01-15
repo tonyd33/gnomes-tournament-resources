@@ -1,3 +1,5 @@
+import {LOCAL_STORAGE_KEYS} from '../lib/constants';
+import {useLocalStorage} from '@uidotdev/usehooks';
 import {useMemo, useCallback} from 'react';
 import {useGameState} from '../lib/gameStateContext';
 import PlayerCard from '../components/PlayerCard';
@@ -6,8 +8,14 @@ import _ from 'lodash';
 
 
 export default function EliminationPage() {
-  const {gameState, playersInfo, manualMode} = useGameState();
+  const {gameState} = useGameState();
 
+  const [manualMode] = useLocalStorage(
+    LOCAL_STORAGE_KEYS.MANUAL_MODE, false
+  );
+  const [playersInfo] = useLocalStorage(
+    LOCAL_STORAGE_KEYS.PLAYERS_INFO, []
+  );
 
   const getPlayerState = useCallback(playerId => {
     const playerState = (gameState?.Players ?? {})[playerId];
@@ -21,7 +29,7 @@ export default function EliminationPage() {
         dead: true,
       }
     }
-  }, [gameState?.Players])
+  }, [gameState])
 
   const players = useMemo(() => {
     const unpaddedPlayers = playersInfo ?? [];
@@ -31,7 +39,9 @@ export default function EliminationPage() {
           player => ({
             playerId: player.playerId,
             name: player.name,
-            pictureURL: `${player.name}.png`,
+            pictureURL: player.pictureName
+              ? `${player.pictureName}.png`
+              : undefined,
             ...getPlayerState(player.playerId),
           })
         ),

@@ -1,10 +1,13 @@
-import {useState, useCallback} from 'react';
+import {useState, useCallback, useEffect} from 'react';
 
 export default function PlayerCard({name, pictureURL, dead, manualMode}) {
   const [overrideDead, setOverrideDead] = useState(dead);
 
+  useEffect(() => {
+    setOverrideDead(dead);
+  }, [dead]);
+
   const handleManualOverride = useCallback(() => {
-    console.log(manualMode);
     if (manualMode) {
       setOverrideDead(d => !d)
     }

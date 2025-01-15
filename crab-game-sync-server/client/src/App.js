@@ -1,3 +1,5 @@
+import {useLocalStorage} from '@uidotdev/usehooks';
+import {LOCAL_STORAGE_KEYS} from './lib/constants';
 import {ToastContainer} from 'react-toastify';
 import logo from './logo.svg';
 import './App.css';
@@ -14,16 +16,20 @@ const socket = io(SIO_DOMAIN);
 function App() {
   const [gameState, setGameState] = useState();
   const [msgs, setMsgs] = useState([]);
+  const [connected, setConnected] = useState(false);
 
-  const [manualMode, setManualMode] = useState(false);
-  const [playersInfo, setPlayersInfo] = useState([]);
+  const [manualMode] = useLocalStorage(
+    LOCAL_STORAGE_KEYS.MANUAL_MODE, false
+  );
 
   useEffect(() => {
     const onConnect = () => {
       console.log('Connected');
+      setConnected(true);
     }
     const onDisconnect = () => {
       console.log('Disconnected');
+      setConnected(false);
     }
     const onPong = () => {
       console.log('Received pong');
@@ -56,50 +62,13 @@ function App() {
     }
   }, [manualMode]);
 
-  // retrieve the map from local storage on mount
-  useEffect(() => {
-    try {
-      const items = JSON.parse(localStorage.getItem('playersInfo'));
-      console.log('Retrieved playersInfo from localStorage');
-      console.log(items);
-      setPlayersInfo(items);
-    } catch (err) {
-      console.log('Initializing playersInfo to localStorage');
-      localStorage.setItem('playersInfo', JSON.stringify([]));
-      setPlayersInfo([]);
-    }
-  }, []);
-
-  //retrieve manual mode
-  useEffect(() => {
-    try {
-      const manualMode = JSON.parse(localStorage.getItem('manualMode'));
-      console.log('Retrieved manualMode from localStorage');
-      console.log(manualMode);
-      setManualMode(manualMode);
-    } catch (err) {
-      console.log('Initializing manualMode to localStorage');
-      localStorage.setItem('manualMode', JSON.stringify(false));
-      setManualMode(false);
-    }
-  }, [])
-
-  // update localStorage on change
-  useEffect(() => {
-    localStorage.setItem('playersInfo', JSON.stringify(playersInfo));
-  }, [playersInfo])
-
-  useEffect(() => {
-    localStorage.setItem('manualMode', JSON.stringify(manualMode));
-  }, [manualMode]);
-
   const handlePollState = useCallback(() => {
     socket.emit('poll_state');
   }, []);
 
   const handleRemoteCommand = useCallback((command) => {
     socket.emit('remote_command', command);
-  }, [])
+  }, []);
 
 
   return (
@@ -107,12 +76,9 @@ function App() {
       gameState,
       pollState: handlePollState,
       remoteCommand: handleRemoteCommand,
-      _socket: socket,
       msgs,
-      playersInfo,
-      setPlayersInfo,
-      manualMode,
-      setManualMode
+      connected,
+      _socket: socket,
     }}>
       <BrowserRouter>
         <Routes path="/">
