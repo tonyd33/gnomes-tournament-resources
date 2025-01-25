@@ -1,0 +1,78 @@
+- name: Set up directories
+  file:
+    path: "{{item}}"
+    state: directory
+    mode: '755'
+  loop:
+    - /var/log/letsencrypt
+    - /etc/letsencrypt
+    - "{{cluster_share_path}}/shared-resources"
+
+- name: Copy existing certs to server
+  synchronize:
+    src: ../files/letsencrypt/
+    dest: /etc/letsencrypt
+
+- name: Change ensure file permissions
+  file:
+    path: /etc/letsencrypt
+    state: directory
+    mode: '755'
+    owner: root
+    group: root
+
+- debug: var=debug_certs
+
+- name: Get certificate
+  docker_container:
+    name: certbot_porkbun
+    image: "infinityofspace/certbot_dns_porkbun"
+    detach: false
+    command: >
+      {{
+        [
+          "certonly",
+          "--non-interactive",
+          "--agree-tos",
+          "--email=tony@gnomes.moe",
+          "--preferred-challenges=dns",
+          "--authenticator=dns-porkbun",
+          "--dns-porkbun-key=" + porkbun_api_key,
+          "--dns-porkbun-secret=" + porkbun_secret_key,
+          "--dns-porkbun-propagation-seconds=60",
+        ]
+        + (["--staging"] if debug_certs else [])
+        + (["--dry-run"] if certs_dry_run else [])
+        +
+        [
+          "-d",
+          "*." + app_domain_name,
+        ]
+      }}
+    mounts:
+      - source: /etc/letsencrypt
+        target: /etc/letsencrypt
+        type: bind
+      - source: /var/log/letsencrypt
+        target: /var/log/letsencrypt
+        type: bind
+  register: container_result
+
+- name: Copy existing certs from server
+  synchronize:
+    mode: pull
+    src: /etc/letsencrypt
+    dest: ../files/
+
+# We're only going to use the domain for like a day, so copying it over rather
+# than some symlink solution with a cron job is fine
+- name: Copy certs to shared directory
+  copy:
+    remote_src: true
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+    - src: /etc/letsencrypt/live/gnomes.moe/fullchain.pem
+      dest: "{{ ssl_cert_path }}"
+    - src: /etc/letsencrypt/live/gnomes.moe/privkey.pem
+      dest: "{{ ssl_key_path }}"

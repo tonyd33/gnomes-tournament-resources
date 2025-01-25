@@ -1,0 +1,86 @@
+#!/bin/bash
+
+set -uo pipefail
+
+function send_webhook() {
+	BODY="$1"
+	echo "Sending $BODY" >&2
+	curl -X POST \
+		-H "content-type: application/json" \
+		'{{ webhook_url }}' \
+		-d "$BODY"
+}
+
+function construct_body() {
+	TITLE="$1"
+	DESCRIPTION="$2"
+	cat <<-EOF
+	{
+		"content": null,
+		"embeds": [
+			{
+				"title": "$TITLE",
+				"description": "$DESCRIPTION",
+				"color": 12500628
+			}
+		],
+		"attachments": []
+	}
+	EOF
+}
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--mtx-path) MTX_PATH="$2"; shift 2;;
+		--mtx-segment-path) MTX_SEGMENT_PATH="$2"; shift 2;;
+		*)
+			echo "Invalid argument"
+			exit 1
+			;;
+	esac
+done
+
+PART_NAME=$(basename "$MTX_SEGMENT_PATH")
+REMOTE_PATH="{{rclone_recordings_config_name}}:{{recordings_bucket}}/$MTX_PATH/$PART_NAME.tar.gz"
+
+if [ "$(rclone ls "$REMOTE_PATH" | wc -l)" -ne 0 ]; then
+	DESCRIPTION="While trying to upload $MTX_SEGMENT_PATH, found remote path $REMOTE_PATH exists. Skipping..."
+	BODY=$(construct_body "[WARN]: Path already exists" "$DESCRIPTION")
+	echo "$DESCRIPTION" >&2
+	send_webhook "$BODY"
+	exit 1
+fi
+
+# rclone move -v --min-age=1ms /recordings "{{rclone_recordings_config_name}}:{{recordings_bucket}}/"
+echo "Uploading from $MTX_SEGMENT_PATH to $REMOTE_PATH" >&2
+cd "$(dirname $MTX_SEGMENT_PATH)"
+OUTPUT=$(
+tar c "$PART_NAME" |\
+	gzip |\
+	rclone -v rcat "$REMOTE_PATH" 2>&1
+)
+cd -
+
+if [ $? -eq 0 ]; then
+	DESCRIPTION=$(cat <<-EOF | jq -Rsr @json | sed 's/^"//;s/"$//'
+	Upload successful.
+	Logs:
+	$OUTPUT
+	EOF
+	)
+	BODY=$(construct_body "[INFO]: $MTX_SEGMENT_PATH uploaded to $REMOTE_PATH" "$DESCRIPTION")
+	send_webhook "$BODY"
+	rm "$MTX_SEGMENT_PATH"
+	exit 0
+else
+	DESCRIPTION=$(cat <<-EOF | jq -Rsrs @json | sed 's/^"//;s/"$//'
+	Upload failed: $MTX_SEGMENT_PATH
+	Logs:
+	$OUTPUT
+	EOF
+	)
+	BODY=$(construct_body "[ERR]: $MTX_SEGMENT_PATH upload failed" "$DESCRIPTION")
+	send_webhook "$BODY"
+	exit 1
+fi
+

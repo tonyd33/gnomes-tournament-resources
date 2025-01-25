@@ -1,0 +1,43 @@
+- name: Set up directories
+  when: inventory_hostname == groups.swarm_master[0]
+  file:
+    path: "{{ item.path }}"
+    state: "{{ item.state }}"
+    mode: '755'
+  loop:
+    - path: "{{ prometheus_data_path }}"
+      state: directory
+
+- name: Create docker-compose stack file (on first swarm node)
+  when: inventory_hostname == groups.swarm_master[0]
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: '0775'
+  loop:
+    - src: monitor-stack.yml.j2
+      dest: /root/stacks/monitor-stack.yml.j2
+    - src: prometheus.yml.j2
+      dest: "{{ prometheus_config_path }}"
+
+- name: Check grafana exists
+  stat:
+    path: "{{ grafana_data_path }}/grafana.db"
+  register: grafana
+
+- name: Copy grafana configuration
+  copy:
+    src: grafana/data/
+    dest: "{{ grafana_data_path }}"
+    mode: 0755
+  when: not grafana.stat.exists
+
+- name: Deploy stack from a compose file (on first swarm node)
+  when: inventory_hostname == groups.swarm_master[0]
+  docker_stack:
+    state: present
+    name: monitor
+    detach: false
+    compose:
+      - /root/stacks/monitor-stack.yml.j2
+

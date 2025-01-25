@@ -1,0 +1,150 @@
+networks:
+  stream:
+    external: true
+    name: stream
+    # driver: bridge
+
+services:
+  postgres:
+    image: postgres
+    hostname: postgres
+    container_name: postgres
+    restart: unless-stopped
+    networks: [stream]
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=auth
+
+  auth-server:
+    build:
+      context: ../components/auth-server
+    hostname: auth-server
+    container_name: auth-server
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks: [stream]
+    ports:
+      - 6570:6570
+    environment:
+      - PORT=6570
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_USERNAME=admin
+      - PG_PASSWORD=password
+      - PG_DATABASE=auth
+
+  playback:
+    image: "bluenviron/mediamtx:latest-ffmpeg"
+    hostname: playback
+    container_name: playback
+    restart: unless-stopped
+    networks: [stream]
+    ports:
+      - "9554:8554" # RTSP
+      - "2935:1935" # RTMP
+      - "9890:8890/udp" # SRT
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+    volumes:
+      - "./mediamtx/playback/mediamtx.yml:/mediamtx.yml:ro"
+      - "./mediamtx/data/hls:/hls"
+
+  # We have a server dedicated for HLS because we may need to transcode to
+  # HLS-compatible codecs for HLS playback, and we don't want to do transcoding
+  # to the regular playback server.
+  playback-hls:
+    build:
+      context: ../components/mediamtx
+    hostname: playback-hls
+    container_name: playback-hls
+    restart: unless-stopped
+    networks: [stream]
+    ports:
+      - "9888:8888" # HLS
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+    volumes:
+      - "./mediamtx/playback-hls/mediamtx.yml:/mediamtx.yml:ro"
+      - "./mediamtx/data/hls:/hls"
+
+  recording:
+    build:
+      context: ../components/mediamtx
+    hostname: recording
+    container_name: recording
+    restart: unless-stopped
+    networks: [stream]
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+    volumes:
+      - "./mediamtx/recording/mediamtx.yml:/mediamtx.yml:ro"
+      - "./mediamtx/data/recordings:/recordings"
+
+  relay:
+    build:
+      context: ../components/mediamtx
+    hostname: relay
+    container_name: relay
+    depends_on:
+      - playback
+      - recording
+    restart: unless-stopped
+    networks:
+      - stream
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+    volumes:
+      - "./mediamtx/relay/mediamtx.yml:/mediamtx.yml:ro"
+      - "./mediamtx/relay/scripts/run-on-ready.sh:/scripts/run-on-ready.sh"
+
+  ingest:
+    build:
+      context: ../components/mediamtx
+    hostname: ingest
+    container_name: ingest
+    depends_on:
+      - auth-server
+      - relay
+    restart: unless-stopped
+    networks:
+      - stream
+    ports:
+      - "8554:8554" # RTSP
+      - "1935:1935" # RTMP
+      - "8888:8888" # HLS
+      - "8889:8889" # WHIP/WHEP
+      - "8890:8890/udp" # SRT
+      - "8189:8189"
+      - "9997:9997"
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+      - MTX_WEBRTCADDITIONALHOSTS=10.0.x.x
+    volumes:
+      - "./mediamtx/ingest/mediamtx.yml:/mediamtx.yml:ro"
+      - "./mediamtx/ingest/scripts/run-on-ready.sh:/scripts/run-on-ready.sh"
+
+  webrtc_client:
+    build:
+      context: ../components/webrtc-client
+    hostname: webrtc-client
+    container_name: webrtc-client
+    depends_on:
+      - auth-server
+      - ingest
+    restart: unless-stopped
+    networks:
+      - stream
+    ports:
+      - "6829:6829"
+    environment:
+      - PORT=6829
+      - "WHIP_URL=http://localhost:8889"
+      - "HLS_URL=http://localhost:9888"
+      - DEBUG_WHIP=1

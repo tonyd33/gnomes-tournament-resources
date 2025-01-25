@@ -1,0 +1,35 @@
+- name: Set up directories
+  when: inventory_hostname == groups.swarm_master[0]
+  file:
+    path: /root/stacks/portainer
+    state: directory
+    mode: '755'
+
+- name: Generate admin password hash
+  when: inventory_hostname == groups.swarm_master[0]
+  shell: |
+    if [ -f /root/stacks/portainer/passwd ]; then
+      cat /root/stacks/portainer/passwd
+    else
+      echo $(htpasswd -nBb admin {{portainer_admin_password}}) |\
+        cut -d ":" -f 2 |\
+        sed -e s/\\$/\\$\\$/g |\
+        tee /root/stacks/portainer/passwd
+    fi
+  register: portainerpassword
+
+- name: Create docker-compose stack file (on first swarm node)
+  when: inventory_hostname == groups.swarm_master[0]
+  template:
+    src: portainer-agent-stack.yml.j2
+    dest: /root/stacks/portainer-agent-stack.yml
+    mode: '0775'
+
+- name: Deploy stack from a compose file (on first swarm node)
+  when: inventory_hostname == groups.swarm_master[0]
+  docker_stack:
+    state: present
+    detach: false
+    name: portainer
+    compose:
+      - /root/stacks/portainer-agent-stack.yml

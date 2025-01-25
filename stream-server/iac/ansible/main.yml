@@ -1,0 +1,26 @@
+---
+- hosts: all
+  name: Common setup
+  tags: [common]
+  roles: [common]
+
+- hosts: nfs_server,nfs_client
+  roles: [nfs]
+
+- hosts: swarm_master,swarm_worker
+  tags: [swarm-setup]
+  roles: [docker-swarm]
+
+- hosts: swarm_master
+  tags: [prepare]
+  roles:
+    - build-image
+    - certs
+    - traefik
+    - portainer
+    - monitor
+
+- hosts: swarm_master
+  tags: [deploy]
+  roles: [stream-stack]
+
