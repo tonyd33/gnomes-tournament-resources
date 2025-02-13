@@ -1,0 +1,78 @@
+- name: Install system dependencies
+  apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-docker
+      - docker.io
+      - docker-buildx
+      - docker-compose-v2
+      - jq
+      - rsync
+      - nfs-common
+      - nfs-kernel-server
+      - python3-certbot
+      - python3-jsondiff
+      - apache2-utils
+    update_cache: yes
+    state: present
+- name: Install system dependencies (snap)
+  snap:
+    name:
+      - aws-cli
+    classic: true
+- name: Create docker directory
+  file:
+    path: /etc/docker
+    state: directory
+    mode: 755
+
+- name: Update Docker daemon settings
+  copy:
+    content: |
+      {
+        "metrics-addr": "0.0.0.0:9323",
+        "experimental": true
+      }
+    dest: /etc/docker/daemon.json
+  register: docker_settings
+
+- name: Restart docker
+  service:
+    name: docker
+    state: restarted
+  when: docker_settings.changed
+
+
+- name: Create groups
+  group:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - wheel
+    - docker
+
+- name: Make users passwordless for sudo in group wheel
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+
+- name: Add users
+  user:
+    name: "{{ item.name }}"
+    state: present
+    shell: /usr/bin/bash
+    groups:
+      - docker
+      - wheel
+  loop: "{{ users }}"
+
+- name: Add SSH key to user's authorized keys
+  authorized_key:
+    user: "{{ item.name }}"
+    state: present
+    key: "https://github.com/{{ item.github }}.keys"
+  loop: "{{ users }}"

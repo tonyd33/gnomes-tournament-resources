@@ -1,0 +1,53 @@
+- name: Create docker network
+  docker_network:
+    name: "{{stream_stack_network}}"
+    driver: overlay
+    attachable: true
+  register: stream_stack_network_info
+
+- name: Create monitor network
+  docker_network:
+    name: "{{monitor_network}}"
+    driver: overlay
+    attachable: true
+  register: monitor_network_info
+
+- set_fact:
+    stream_stack_subnet: "{{ stream_stack_network_info.network.IPAM.Config[0].Subnet }}"
+    monitor_subnet: "{{ monitor_network_info.network.IPAM.Config[0].Subnet }}"
+
+- name: Set up directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '755'
+  loop:
+    - "{{cluster_share_path}}/shared-resources"
+    - "{{cluster_share_path}}/hls"
+    - "{{recordings_path}}"
+
+- name: Create mediamtx directories
+  file:
+    path: "{{cluster_share_path}}/stacks/stream/{{item.path}}"
+    state: directory
+    mode: '{{item.mode}}'
+  with_community.general.filetree: ../templates
+  when: item.state == 'directory'
+
+- name: Template files
+  when: item.state == 'file'
+  template:
+    src: "{{item.src}}"
+    dest: "{{cluster_share_path}}/stacks/stream/{{item.path | regex_replace('.j2', '')}}"
+    mode: '{{item.mode}}'
+  with_community.general.filetree: ../templates
+
+- name: Deploy stack from a compose file (on first swarm node)
+  when: inventory_hostname == groups.swarm_master[0]
+  docker_stack:
+    state: present
+    name: stream
+    detach: false
+    compose:
+      - "{{cluster_share_path}}/stacks/stream/docker-stack.yml"
+

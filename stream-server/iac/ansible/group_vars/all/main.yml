@@ -1,0 +1,198 @@
+debug_certs: false
+certs_dry_run: false
+
+cluster_share_path: /mnt/clustershare
+recordings_bucket: "stream-recordings-bucket"
+# Keep in sync with defined in terraform. Or create an ansible variable with
+# the ansible resources
+recordings_path: /mnt/recordings
+
+webhook_url: "{{ secrets.webhook_url }}"
+
+ssl_cert_path: "{{cluster_share_path}}/shared-resources/cert"
+ssl_key_path: "{{cluster_share_path}}/shared-resources/key"
+
+users:
+  - name: tony
+    github: tonyd33
+  - name: tree
+    github: imatreetree
+
+# Keep this in sync with the terraform mount path
+
+app_domain_name: gnomes.moe
+
+# BEGIN: Stream stack
+stream_stack_image_tag: "{{now(utc=true,fmt='%Y-%m-%d-%H-%M')}}"
+stream_stack_network: stream
+
+stream_stack_auth_server:
+  app_name: api
+  image: "localhost:5000/auth_server"
+  container: auth-server
+  port: 6570
+  admin_user: "{{secrets.auth_server.admin_user}}"
+  admin_password: "{{secrets.auth_server.admin_password}}"
+  jwt_secret: "{{secrets.auth_server.jwt_secret}}"
+  resources:
+    limits:
+      cpus: '0.2'
+      memory: '128M'
+    reservations:
+      cpus: '0.1'
+      memory: '64M'
+
+stream_stack_mediamtx:
+  image: "localhost:5000/mediamtx"
+
+stream_stack_playback:
+  image: "{{stream_stack_mediamtx.image}}"
+  # Don't touch this unless we've set up a good way to reverse proxy
+  # multiple playback nodes.
+  replicas: 1
+  container: playback
+  rtsp_port: 9554
+  rtsps_port: 9322
+  rtmp_port: 2935
+  rtmps_port: 2936
+  srt_port: 9890
+  resources:
+    limits:
+      cpus: '2.0'
+      memory: '2048M'
+    reservations:
+      cpus: '0.75'
+      memory: '512M'
+
+stream_stack_playback_hls:
+  image: "{{stream_stack_mediamtx.image}}"
+  replicas: 1
+  container: playback-hls
+  hls_port: 9888
+  hls_directory: "{{cluster_share_path}}/hls"
+  resources:
+    limits:
+      cpus: '1.0'
+      memory: '2048M'
+    reservations:
+      cpus: '0.25'
+      memory: '256M'
+
+stream_stack_recording:
+  image: "{{stream_stack_mediamtx.image}}"
+  replicas: 1
+  container: recording
+  recording_directory: "{{recordings_path}}"
+  # segment_duration: 30s # for debugging
+  segment_duration: 1h
+  resources:
+    limits:
+      cpus: '1.0'
+      memory: '2048M'
+    reservations:
+      cpus: '0.25'
+      memory: '256M'
+
+stream_stack_relay:
+  image: "{{stream_stack_mediamtx.image}}"
+  replicas: 1
+  container: relay
+  resources:
+    limits:
+      cpus: '1.0'
+      memory: '2048M'
+    reservations:
+      cpus: '0.25'
+      memory: '256M'
+
+stream_stack_ingest:
+  image: "{{stream_stack_mediamtx.image}}"
+  replicas: 1
+  container: ingest
+  rtsp_port: 8554
+  rtsps_port: 8322
+  rtmp_port: 1935
+  rtmps_port: 1936
+  whip_port: 8889
+  srt_port: 8890
+  # TODO: Enable this for production
+  webrtc_ssl: yes
+  # webrtc is ridiculously CPU-intensive
+  resources:
+    limits:
+      cpus: '1.5'
+      memory: '2048M'
+    reservations:
+      cpus: '0.5'
+      memory: '512M'
+
+stream_stack_webrtc_client:
+  # While it'd be nice to have this on just gnomes.moe, the wildcard certificate
+  # *.gnomes.moe doesn't actually cover gnomes.moe and I don't want to get
+  # another certificate just for this.
+  app_name: app
+  image: "localhost:5000/webrtc_client"
+  container: webrtc-client
+  port: 6829
+  resources:
+    limits:
+      cpus: '0.2'
+      memory: '128M'
+    reservations:
+      cpus: '0.1'
+      memory: '64M'
+
+stream_stack_postgres:
+  image: postgres
+  container: postgres
+  user: "{{secrets.postgres.user}}"
+  password: "{{secrets.postgres.password}}"
+  db: auth
+  port: 5432
+
+stream_stack_stream_build_images:
+  - path: auth-server
+    image_name: "{{stream_stack_auth_server.image}}"
+  - path: mediamtx
+    image_name: "{{stream_stack_mediamtx.image}}"
+  - path: webrtc-client
+    image_name: "{{stream_stack_webrtc_client.image}}"
+# END: Stream stack
+
+
+# BEGIN: Portainer
+portainer_app_name: prt
+portainer_agent_secret: "{{ secrets.portainer_agent_secret }}"
+portainer_admin_password: "{{ secrets.portainer_admin_password }}"
+portainer_admin_port: 9000
+portainer_tunnel_port: 8000
+portainer_network: portainer
+portainer_container_name: portainer
+# END: Portainer
+
+# BEGIN: Traefik
+traefik_app_name: trfk
+traefik_network: traefik
+traefik_admin_user: admin
+traefik_admin_password: "{{ secrets.traefik_admin_password }}"
+traefik_listen_port: 80
+traefik_secure_listen_port: 443
+traefik_admin_port: 8082
+# END: Traefik
+
+# BEGIN: Monitor
+monitor_network: monitor
+node_exporter_container_name: node-exporter
+cadvisor_container_name: cadvisor
+prometheus_config_path: "{{cluster_share_path}}/shared-resources/prometheus/prometheus.yml"
+prometheus_data_path: "{{cluster_share_path}}/shared-resources/prometheus/data"
+prometheus_app_name: prom
+grafana_data_path: "{{cluster_share_path}}/shared-resources/grafana/data"
+grafana_admin_password: "{{ secrets.grafana_admin_password }}"
+grafana_app_name: gf
+# END: Monitor
+
+# BEGIN: API Keys
+porkbun_api_key: "{{ secrets.porkbun_api_key }}"
+porkbun_secret_key: "{{ secrets.porkbun_secret_key }}"
+# END: API Keys

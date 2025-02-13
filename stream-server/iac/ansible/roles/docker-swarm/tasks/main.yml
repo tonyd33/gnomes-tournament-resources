@@ -1,0 +1,18 @@
+- name: (swarm_master) Init swarm
+  when: inventory_hostname == groups.swarm_master[0]
+  docker_swarm:
+    state: present
+    advertise_addr: "{{ansible_default_ipv4.address}}"
+  register: master_swarm_facts
+
+- when: inventory_hostname == groups.swarm_master[0]
+  set_fact:
+    worker_join_token: "{{master_swarm_facts.swarm_facts.JoinTokens.Worker}}"
+
+- name: (swarm_workers) Join swarm
+  when: inventory_hostname in groups.swarm_worker
+  docker_swarm:
+    state: join
+    join_token: "{{hostvars[groups.swarm_master[0]].worker_join_token}}"
+    advertise_addr: "{{ansible_default_ipv4.address}}"
+    remote_addrs: ["{{hostvars[groups.swarm_master[0]].ansible_default_ipv4.address}}"]

@@ -1,0 +1,29 @@
+- name: (nfs_server) Set up share directory
+  when: inventory_hostname == groups.nfs_server[0]
+  file:
+    path: "{{cluster_share_path}}"
+    state: directory
+    mode: '755'
+
+- name: (nfs_server) Copy NFS configuration
+  when: inventory_hostname == groups.nfs_server[0]
+  template:
+    src: exports.j2
+    dest: /etc/exports
+  register: exports
+
+- name: (nfs_server) Enable NFS server
+  when: inventory_hostname == groups.nfs_server[0]
+  service:
+    name: nfs-kernel-server
+    state: "{{ 'restarted' if exports.changed else 'started' }}"
+    enabled: yes
+
+- name: (nfs_client) Mount NFS volume
+  when: inventory_hostname in groups.nfs_client
+  mount:
+    src: "{{hostvars[groups.nfs_server[0]].ansible_default_ipv4.address}}:{{cluster_share_path}}"
+    path: "{{cluster_share_path}}"
+    state: mounted
+    opts: rw,sync,hard
+    fstype: nfs

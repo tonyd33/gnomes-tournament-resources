@@ -1,0 +1,37 @@
+- name: Check if registry exists
+  shell:
+    cmd: "docker service ls | grep registry"
+  register: registry
+  failed_when: false
+  changed_when: false
+
+- name: Set up registry
+  shell:
+    cmd: "docker service create --name registry -p 5000:5000 registry:2"
+  when: registry.rc != 0
+
+- name: Set up directory structure
+  file:
+    path: /root/docker-build
+    state: directory
+    mode: '755'
+
+- name: Copy files
+  synchronize:
+    src: "../files/{{item.path}}/"
+    dest: "/root/docker-build/{{item.path}}"
+  loop: "{{stream_stack_stream_build_images}}"
+
+- name: (swarm_master) Build images
+  community.docker.docker_image_build:
+    name: "{{item.image_name}}"
+    path: "/root/docker-build/{{item.path}}"
+    rebuild: always
+    outputs:
+      - push: true
+        type: image
+        name: "{{item.image_name}}:{{stream_stack_image_tag}}"
+      - push: true
+        type: image
+        name: "{{item.image_name}}:latest"
+  loop: "{{stream_stack_stream_build_images}}"

@@ -1,0 +1,47 @@
+networks:
+  {{traefik_network}}:
+    driver: overlay
+    attachable: true
+    name: {{traefik_network}}
+
+services:
+  reverse-proxy:
+    image: traefik:v2.10
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker"
+      - "--providers.docker.swarmMode=true"
+      - "--entrypoints.web.address=:{{traefik_listen_port}}"
+      - "--entrypoints.websecure.address=:{{traefik_secure_listen_port}}"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--providers.docker.exposedByDefault=false"
+      - "--providers.file.directory=/config"
+    ports:
+      - "{{traefik_listen_port}}:{{traefik_listen_port}}"
+      - "443:443"
+      - "{{traefik_admin_port}}:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: 50M
+    networks:
+      - {{traefik_network}}
+    deploy:
+      labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`{{traefik_app_name}}.{{app_domain_name}}`)"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.routers.api.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users={{traefikpassword.stdout}}"
+      # Dummy service for Swarm port detection. The port can be any valid integer value.
+      - "traefik.http.services.dummy-svc.loadbalancer.server.port=9999"
+      mode: global
+      placement:
+        constraints: [node.role == manager]
+    volumes:
+      - "{{ ssl_cert_path }}:/certs/cert.pem"
+      - "{{ ssl_key_path }}:/certs/privkey.pem"
+      - "/root/stacks/traefik/traefik.yml:/config/traefik.yml"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"

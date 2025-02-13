@@ -1,0 +1,270 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 50M
+
+x-dns: &dns
+  dns:
+    - 1.1.1.1
+    - 8.8.8.8
+
+networks:
+  {{stream_stack_network}}:
+    external: true
+    name: {{stream_stack_network}}
+  {{traefik_network}}:
+    external: true
+    name: {{traefik_network}}
+  {{monitor_network}}:
+    external: true
+    name: {{monitor_network}}
+
+services:
+  {{stream_stack_postgres.container}}:
+    image: {{stream_stack_postgres.image}}
+    hostname: {{stream_stack_postgres.container}}
+    container_name: {{stream_stack_postgres.container}}
+    restart: unless-stopped
+    networks: [{{stream_stack_network}}]
+    environment:
+      - POSTGRES_USER={{stream_stack_postgres.user}}
+      - POSTGRES_PASSWORD={{stream_stack_postgres.password}}
+      - POSTGRES_DB={{stream_stack_postgres.db}}
+    <<: *logging
+    <<: *dns
+
+  # TODO: Make an easy way to dump credentials into and out of the server
+  {{stream_stack_auth_server.container}}:
+    image: {{stream_stack_auth_server.image}}
+    hostname: {{stream_stack_auth_server.container}}
+    container_name: {{stream_stack_auth_server.container}}
+    depends_on: [{{stream_stack_postgres.container}}]
+    restart: unless-stopped
+    networks:
+    - {{stream_stack_network}}
+    - {{traefik_network}}
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.auth_server.entrypoints=websecure"
+        - "traefik.http.routers.auth_server.tls=true"
+        - "traefik.http.routers.auth_server.rule=Host(`{{stream_stack_auth_server.app_name}}.{{app_domain_name}}`)"
+        - "traefik.http.services.auth_server.loadbalancer.server.port={{stream_stack_auth_server.port}}"
+        - "traefik.docker.network={{traefik_network}}"
+      replicas: 1
+      resources:
+        {{stream_stack_auth_server.resources | to_nice_yaml() | indent(8)}}
+    environment:
+      - PORT={{stream_stack_auth_server.port}}
+      - PG_HOST={{stream_stack_postgres.container}}
+      - PG_PORT={{stream_stack_postgres.port}}
+      - PG_USERNAME={{stream_stack_postgres.user}}
+      - PG_PASSWORD={{stream_stack_postgres.password}}
+      - PG_DATABASE={{stream_stack_postgres.db}}
+      - JWT_SECRET={{stream_stack_auth_server.jwt_secret}}
+      - ADMIN_USER={{stream_stack_auth_server.admin_user}}
+      - ADMIN_PASSWORD={{stream_stack_auth_server.admin_password}}
+      - "PROXY_MEDIAMTX_INGEST_URL=http://{{stream_stack_ingest.container}}:9997"
+    <<: *logging
+    <<: *dns
+
+  {{stream_stack_playback.container}}:
+    image: {{stream_stack_playback.image}}
+    hostname: {{stream_stack_playback.container}}
+    container_name: {{stream_stack_playback.container}}
+    restart: unless-stopped
+    networks:
+      - {{stream_stack_network}}
+      - {{monitor_network}}
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+      replicas: {{stream_stack_playback.replicas}}
+      resources:
+        {{stream_stack_playback.resources | to_nice_yaml() | indent(8)}}
+      labels:
+        - prometheus-job=mediamtx
+        - prometheus-port=9998
+    ports:
+      - "{{stream_stack_playback.rtsp_port}}:8554"
+      - "{{stream_stack_playback.rtsps_port}}:8322"
+      - "{{stream_stack_playback.rtmp_port}}:1935"
+      - "{{stream_stack_playback.rtmps_port}}:1936"
+      - "{{stream_stack_playback.srt_port}}:8890/udp"
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+    volumes:
+      - "./mediamtx/playback/mediamtx.yml:/mediamtx.yml:ro"
+      - "{{ssl_cert_path}}:/server.crt"
+      - "{{ssl_key_path}}:/server.key"
+    <<: *logging
+    <<: *dns
+
+  # We have a server dedicated for HLS because we may need to transcode to
+  # HLS-compatible codecs for HLS playback, and we don't want to do transcoding
+  # to the regular playback server.
+  {{stream_stack_playback_hls.container}}:
+    image: {{stream_stack_playback_hls.image}}
+    hostname: {{stream_stack_playback_hls.container}}
+    container_name: {{stream_stack_playback_hls.container}}
+    restart: unless-stopped
+    networks:
+      - {{stream_stack_network}}
+      - {{monitor_network}}
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+      replicas: {{stream_stack_playback_hls.replicas}}
+      resources:
+        {{stream_stack_playback_hls.resources | to_nice_yaml() | indent(8)}}
+      labels:
+        - prometheus-job=mediamtx
+        - prometheus-port=9998
+    ports:
+      - "{{stream_stack_playback_hls.hls_port}}:8888" # HLS
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+    volumes:
+      - "./mediamtx/playback-hls/mediamtx.yml:/mediamtx.yml:ro"
+      - "{{stream_stack_playback_hls.hls_directory}}:/hls"
+      - "{{ssl_cert_path}}:/server.crt"
+      - "{{ssl_key_path}}:/server.key"
+    <<: *logging
+    <<: *dns
+
+  {{stream_stack_recording.container}}:
+    image: {{stream_stack_recording.image}}
+    hostname: {{stream_stack_recording.container}}
+    container_name: {{stream_stack_recording.container}}
+    restart: unless-stopped
+    networks:
+      - {{stream_stack_network}}
+      - {{monitor_network}}
+    deploy:
+      placement:
+        constraints:
+          - node.role!=manager
+      replicas: {{stream_stack_recording.replicas}}
+      resources:
+        {{stream_stack_recording.resources | to_nice_yaml() | indent(8)}}
+      labels:
+        - prometheus-job=mediamtx
+        - prometheus-port=9998
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+    volumes:
+      - "./mediamtx/recording/mediamtx.yml:/mediamtx.yml:ro"
+      - "./mediamtx/recording/scripts:/scripts:ro"
+      - "./mediamtx/recording/rclone.conf:/root/.config/rclone/rclone.conf:ro"
+      - "{{stream_stack_recording.recording_directory}}:/recordings"
+    <<: *logging
+    <<: *dns
+
+  {{stream_stack_relay.container}}:
+    image: {{stream_stack_relay.image}}
+    hostname: {{stream_stack_relay.container}}
+    container_name: {{stream_stack_relay.container}}
+    depends_on:
+      - {{stream_stack_playback.container}}
+      - {{stream_stack_recording.container}}
+    restart: unless-stopped
+    networks:
+      - {{stream_stack_network}}
+      - {{monitor_network}}
+    deploy:
+      placement:
+        constraints:
+          - node.role!=manager
+      replicas: {{stream_stack_relay.replicas}}
+      resources:
+        {{stream_stack_relay.resources | to_nice_yaml() | indent(8)}}
+      labels:
+        - prometheus-job=mediamtx
+        - prometheus-port=9998
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+    volumes:
+      - "./mediamtx/relay/mediamtx.yml:/mediamtx.yml:ro"
+      - "./mediamtx/relay/scripts:/scripts"
+    <<: *logging
+    <<: *dns
+
+  {{stream_stack_ingest.container}}:
+    image: {{stream_stack_ingest.image}}
+    hostname: {{stream_stack_ingest.container}}
+    container_name: {{stream_stack_ingest.container}}
+    depends_on:
+      - {{stream_stack_auth_server.container}}
+      - {{stream_stack_relay.container}}
+    restart: unless-stopped
+    networks:
+      - {{stream_stack_network}}
+      - {{monitor_network}}
+    deploy:
+      placement:
+        constraints:
+          - node.role!=manager
+      replicas: {{stream_stack_ingest.replicas}}
+      resources:
+        {{stream_stack_ingest.resources | to_nice_yaml() | indent(8)}}
+      labels:
+        - prometheus-job=mediamtx
+        - prometheus-port=9998
+    ports:
+      - "{{stream_stack_ingest.rtsp_port}}:8554"
+      - "{{stream_stack_ingest.rtsps_port}}:8322"
+      - "{{stream_stack_ingest.rtmp_port}}:1935"
+      - "{{stream_stack_ingest.rtmps_port}}:1936"
+      - "{{stream_stack_ingest.whip_port}}:8889"
+      - "{{stream_stack_ingest.srt_port}}:8890/udp"
+      - "8189:8189"
+    environment:
+      # Behind the Docker NAT, RTSP through UDP doesn't work.
+      - MTX_RTSPTRANSPORTS=tcp
+      # - MTX_WEBRTCADDITIONALHOSTS=
+    volumes:
+      - "./mediamtx/ingest/mediamtx.yml:/mediamtx.yml"
+      - "./mediamtx/ingest/scripts:/scripts"
+      - "{{ssl_cert_path}}:/server.crt"
+      - "{{ssl_key_path}}:/server.key"
+    <<: *logging
+    <<: *dns
+
+  {{stream_stack_webrtc_client.container}}:
+    image: {{stream_stack_webrtc_client.image}}
+    hostname: {{stream_stack_webrtc_client.container}}
+    container_name: {{stream_stack_webrtc_client.container}}
+    depends_on:
+      - {{stream_stack_auth_server.container}}
+      - {{stream_stack_playback_hls.container}}
+      - {{stream_stack_ingest.container}}
+    restart: unless-stopped
+    networks:
+      - {{stream_stack_network}}
+      - {{traefik_network}}
+    deploy:
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.webrtc_client.entrypoints=websecure"
+        - "traefik.http.routers.webrtc_client.tls=true"
+        - "traefik.http.routers.webrtc_client.rule=Host(`{{stream_stack_webrtc_client.app_name}}.{{app_domain_name}}`)"
+        - "traefik.http.services.webrtc_client.loadbalancer.server.port={{stream_stack_webrtc_client.port}}"
+        - "traefik.docker.network={{traefik_network}}"
+      resources:
+        {{stream_stack_webrtc_client.resources | to_nice_yaml() | indent(8)}}
+    environment:
+      - PORT={{stream_stack_webrtc_client.port}}
+      - "WHIP_URL=https://{{stream_stack_webrtc_client.app_name}}.{{app_domain_name}}:{{stream_stack_ingest.whip_port}}"
+      - "HLS_URL=https://{{stream_stack_webrtc_client.app_name}}.{{app_domain_name}}:{{stream_stack_playback_hls.hls_port}}"
+      - DEBUG_WHIP=1
+    <<: *logging
+    <<: *dns
+
